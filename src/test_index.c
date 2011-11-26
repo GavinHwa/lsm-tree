@@ -34,6 +34,8 @@ int main()
 			__DEBUG("%s,key:<%s>,value:<%s>", "ERROR: Write failed....", key, val);
 	}
 
+	__DEBUG("%s:count<%d>", "INFO: Finish index build test", LOOP); 
+
 	return 0;
 
 }
