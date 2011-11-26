@@ -31,7 +31,7 @@ int main()
 
 		ret = index_add(idx, &sk, &sv);
 		if (!ret)
-			__DEBUG("%s", "Write failed....");
+			__DEBUG("%s,key:<%s>,value:<%s>", "ERROR: Write failed....", key, val);
 	}
 
 	return 0;

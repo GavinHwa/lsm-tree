@@ -69,7 +69,7 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	list = idx->mtbls[idx->lsn];
 
 	if (!list) {
-		__DEBUG("list<%d> is NULL", idx->lsn);
+		__DEBUG("ERROR: List<%d> is NULL", idx->lsn);
 		return 0;
 	}
 
@@ -77,14 +77,14 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 		if (idx->lsn < idx->max_mtbl-1)
 			idx->lsn++;
 		else {
-			__DEBUG("%s", "To do merge...");
+			__DEBUG("%s", "INFO: To do merge...");
 
 			for (i=0; i < idx->max_mtbl; i++) {
 				/*TODO:merge*/
 				skiplist_free(idx->mtbls[i]);
 			}
 
-			__DEBUG("%s", "Finished free all mtables");
+			__DEBUG("%s", "INFO: Finished free all mtables");
 
 			idx->lsn = 0;
 
@@ -92,7 +92,7 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 			idx->log = log_new(idx->name);
 		}
 
-		__DEBUG("%s", "create new mtable");
+		__DEBUG("%s", "INFO: Create new mtable");
 
 		list = skiplist_new(idx->max_mtbl_size);
 		idx->mtbls[idx->lsn] = list;

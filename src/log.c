@@ -86,7 +86,7 @@ struct log *log_new(char *name)
 
 	if (_file_exists(log_name)) {
 		l->fd = open(log_name, LSM_OPEN_FLAGS, 0644);
-		__DEBUG("%s", "Find log file,need to recover");
+		__DEBUG("%s", "WARNING: Find log file,need to recover");
 		/*TODO: log recover*/
 	} else
 		l->fd = open(log_name, LSM_CREAT_FLAGS, 0644);
@@ -114,7 +114,7 @@ UINT log_append(struct log *l, struct slice *sk, struct slice *sv)
 	UINT db_offset = l->db_alloc;
 
 	if (write(l->fd_db, sv->data, sv->len) != sv->len) {
-		__DEBUG("%s", "data aof **ERROR**");
+		__DEBUG("%s:length:<%d>", "ERROR: Data AOF **ERROR**", sv->len);
 		return db_offset;
 	}
 
@@ -128,7 +128,7 @@ UINT log_append(struct log *l, struct slice *sk, struct slice *sv)
 	line = buffer_detach(buf);
 
 	if (write(l->fd, line, len) != len)
-		__DEBUG("%s,line is:%s", "log aof **ERROR**", line);
+		__DEBUG("%s,buffer is:%s,buffer length:<%d>", "ERROR: Log AOF **ERROR**", line, len);
 
 
 	return db_offset;

@@ -23,7 +23,7 @@ int main()
 		if (skiplist_notfull(list))
 			skiplist_insert(list, &sk, k, ADD);
 		else
-			__DEBUG("%s", "****you need more skiplist...");
+			__DEBUG("%s", "WARNING: You need more skiplists...");
 	}
 
 	if (MAXNUM < 1000)
