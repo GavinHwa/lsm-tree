@@ -17,21 +17,21 @@ int main()
 	char key[KSIZE];
 	char val[VSIZE];
 
-	struct slice sk,sv;
+	struct slice sk, sv;
 
-	struct index *idx=index_new("test_idx",MAX_MTBL,MAX_MTBL_SIZE);
-	for(i=0;i < LOOP;i++){
-		snprintf(key,KSIZE,"key:%d",i);
-		snprintf(val,VSIZE,"val:%d",i);
+	struct index *idx = index_new("test_idx", MAX_MTBL, MAX_MTBL_SIZE);
+	for (i=0; i < LOOP; i++) {
+		snprintf(key, KSIZE, "key:%d", i);
+		snprintf(val, VSIZE, "val:%d", i);
 
-		sk.len=KSIZE;
-		sk.data=key;
-		sv.len=VSIZE;
-		sv.data=val;
+		sk.len = KSIZE;
+		sk.data = key;
+		sv.len = VSIZE;
+		sv.data = val;
 
-		ret=index_add(idx,&sk,&sv);
-		if(!ret)
-			__DEBUG("%s","Write failed....");
+		ret = index_add(idx, &sk, &sv);
+		if (!ret)
+			__DEBUG("%s", "Write failed....");
 	}
 
 	return 0;

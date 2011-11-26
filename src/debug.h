@@ -5,10 +5,10 @@
 #include <unistd.h>
 
 #ifdef DEBUG
-#define __DEBUG(x...) do {                                  						\
-        fprintf(stderr, "[%d]	%s(%d)	",(int)getpid(),  __FUNCTION__, __LINE__); 	\
-        fprintf(stderr, ##x);                               						\
-		fprintf(stderr,"\n");														\
+#define __DEBUG(x...) do {                                  								\
+        fprintf(stderr, "[%d]	%s(line:%d)	", (int)getpid(),  __FUNCTION__, __LINE__); 	\
+        fprintf(stderr, ##x);                               								\
+		fprintf(stderr, "\n");																\
     } while(0)
 #else
 	#define __DEBUG(x...)

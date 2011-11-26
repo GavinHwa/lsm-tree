@@ -15,7 +15,7 @@ struct log{
 };
 
 struct log *log_new(char *name);
-UINT log_append(struct log *log,struct slice *sk,struct slice *sv);
+UINT log_append(struct log *log, struct slice *sk, struct slice *sv);
 void log_free(struct log *log);
 
 #endif

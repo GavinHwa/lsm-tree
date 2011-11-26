@@ -38,66 +38,66 @@
 #include "platform.h"
 
 
-struct index *index_new(char *name,int max_mtbl,int max_mtbl_size)
+struct index *index_new(char *name, int max_mtbl, int max_mtbl_size)
 {
-	struct index *idx=malloc(sizeof(struct index));
+	struct index *idx = malloc(sizeof(struct index));
 	
-	idx->lsn=0;
-	idx->max_mtbl=max_mtbl;
-	idx->max_mtbl_size=max_mtbl_size;
-	memset(idx->name,0,INDEX_NSIZE);
-	memcpy(idx->name,name,INDEX_NSIZE);
+	idx->lsn = 0;
+	idx->max_mtbl = max_mtbl;
+	idx->max_mtbl_size = max_mtbl_size;
+	memset(idx->name, 0, INDEX_NSIZE);
+	memcpy(idx->name, name, INDEX_NSIZE);
 
 	/*mtable*/
-	idx->mtbls=calloc(idx->max_mtbl,sizeof(struct skiplist*));
-	idx->mtbls[0]=skiplist_new(idx->max_mtbl_size);
+	idx->mtbls = calloc(idx->max_mtbl, sizeof(struct skiplist*));
+	idx->mtbls[0] = skiplist_new(idx->max_mtbl_size);
 
 	/*log*/
-	idx->log=log_new(name);
+	idx->log = log_new(name);
 
 	return idx;
 }
 
 
-int index_add(struct index *idx,struct slice *sk,struct slice *sv)
+int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 {
 	int i;
 	UINT db_offset;
 	struct skiplist *list;
 
-	db_offset = log_append(idx->log,sk,sv);
+	db_offset = log_append(idx->log, sk, sv);
 	list = idx->mtbls[idx->lsn];
 
-	if(!list){
-		__DEBUG("list<%d> is NULL",idx->lsn);
+	if (!list) {
+		__DEBUG("list<%d> is NULL", idx->lsn);
 		return 0;
 	}
 
-	if(!skiplist_notfull(list)){
-		if(idx->lsn < idx->max_mtbl-1)
+	if (!skiplist_notfull(list)) {
+		if (idx->lsn < idx->max_mtbl-1)
 			idx->lsn++;
-		else{
-			__DEBUG("%s","To do merge...");
+		else {
+			__DEBUG("%s", "To do merge...");
 
-			for(i=0;i<idx->max_mtbl;i++){
+			for (i=0; i < idx->max_mtbl; i++) {
 				/*TODO:merge*/
 				skiplist_free(idx->mtbls[i]);
 			}
 
-			__DEBUG("%s","Finished free all mtables");
+			__DEBUG("%s", "Finished free all mtables");
 
-			idx->lsn=0;
+			idx->lsn = 0;
 
 			log_free(idx->log);
-			idx->log=log_new(idx->name);
+			idx->log = log_new(idx->name);
 		}
 
-		__DEBUG("%s","create new mtable");
+		__DEBUG("%s", "create new mtable");
 
-		list=skiplist_new(idx->max_mtbl_size);
-		idx->mtbls[idx->lsn]=list;
+		list = skiplist_new(idx->max_mtbl_size);
+		idx->mtbls[idx->lsn] = list;
 	}
-	skiplist_insert(list,sk,db_offset,ADD);
+	skiplist_insert(list, sk, db_offset, ADD);
 
 	return 1;
 }

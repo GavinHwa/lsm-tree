@@ -15,8 +15,8 @@ char *buffer_detach(struct buffer *b);
 
 void buffer_putc(struct buffer *b, const char c);
 void buffer_putstr(struct buffer *b, const char *str);
-void buffer_putnstr(struct buffer *b,const char *str,size_t n);
-void buffer_putint(struct buffer *b,int i);
+void buffer_putnstr(struct buffer *b, const char *str, size_t n);
+void buffer_putint(struct buffer *b, int i);
 
 void buffer_dump(struct buffer *b);
 

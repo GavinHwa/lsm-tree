@@ -28,7 +28,7 @@ struct skiplist{
 
 struct skiplist *skiplist_new(size_t size);
 void skiplist_init(struct skiplist *list);
-int skiplist_insert(struct skiplist *list,struct slice *sk,UINT val,OPT opt);
+int skiplist_insert(struct skiplist *list, struct slice *sk, UINT val, OPT opt);
 int skiplist_notfull(struct skiplist *list);
 void skiplist_dump(struct skiplist *list);
 void skiplist_free(struct skiplist *list);

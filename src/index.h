@@ -14,10 +14,10 @@ struct index{
 	struct log *log;
 };
 
-struct index *index_new(char *name,int max_mtbls,int max_mtbl_size);
-int index_add(struct index *idx,struct slice *sk,struct slice *sv);
-void *index_get(struct index *idx,struct slice *sk);
-void index_remove(struct index *idx,struct slice *sk);
+struct index *index_new(char *name, int max_mtbls, int max_mtbl_size);
+int index_add(struct index *idx, struct slice *sk, struct slice *sv);
+void *index_get(struct index *idx, struct slice *sk);
+void index_remove(struct index *idx, struct slice *sk);
 void index_free(struct index *idx);
 
 #endif

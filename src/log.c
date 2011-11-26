@@ -54,7 +54,7 @@
 int _file_exists(const char *path)
 {
 	int fd = open(path, O_RDWR);
-	if(fd>-1){
+	if (fd > -1) {
 		close(fd);
 		return 1;
 	}
@@ -62,11 +62,11 @@ int _file_exists(const char *path)
 }
 
 UINT _getsize(int fd) {
-    struct stat sb;
-    if (fstat(fd,&sb) == -1)
+	struct stat sb;
+	if (fstat(fd,&sb) == -1)
 		return 0;
 
-    return (UINT)sb.st_size;
+	return (UINT)sb.st_size;
 }
 
 struct log *log_new(char *name)
@@ -75,29 +75,29 @@ struct log *log_new(char *name)
 	char log_name[LOG_NSIZE];
 	char db_name[LOG_NSIZE];
 
-	l=malloc(sizeof(struct log));
+	l = malloc(sizeof(struct log));
 
-	memset(log_name,0,LOG_NSIZE);
-	snprintf(log_name,LOG_NSIZE,"%s.log",name);
-	memcpy(l->name,log_name,LOG_NSIZE);
+	memset(log_name, 0 ,LOG_NSIZE);
+	snprintf(log_name, LOG_NSIZE, "%s.log", name);
+	memcpy(l->name, log_name, LOG_NSIZE);
 
-	memset(db_name,0,LOG_NSIZE);
-	snprintf(db_name,LOG_NSIZE,"%s.db",name);
+	memset(db_name, 0, LOG_NSIZE);
+	snprintf(db_name, LOG_NSIZE, "%s.db", name);
 
-	if(_file_exists(log_name)){
-		l->fd=open(log_name, LSM_OPEN_FLAGS, 0644);
-		__DEBUG("%s","Find log file,need to recover");
+	if (_file_exists(log_name)) {
+		l->fd = open(log_name, LSM_OPEN_FLAGS, 0644);
+		__DEBUG("%s", "Find log file,need to recover");
 		/*TODO: log recover*/
-	}else
-		l->fd=open(log_name, LSM_CREAT_FLAGS, 0644);
+	} else
+		l->fd = open(log_name, LSM_CREAT_FLAGS, 0644);
 
-	if(_file_exists(db_name)){
-		l->fd_db = open(db_name,LSM_OPEN_FLAGS,0644);
+	if (_file_exists(db_name)) {
+		l->fd_db = open(db_name, LSM_OPEN_FLAGS, 0644);
 		l->db_alloc = _getsize(l->fd_db);
-		lseek(l->fd,l->db_alloc,SEEK_SET);
-	}else{
-		l->fd_db=open(db_name,LSM_CREAT_FLAGS,0644);
-		l->db_alloc=0;
+		lseek(l->fd, l->db_alloc, SEEK_SET);
+	} else {
+		l->fd_db = open(db_name, LSM_CREAT_FLAGS, 0644);
+		l->db_alloc = 0;
 	}
 
 	l->buf = buffer_new(256);
@@ -106,29 +106,29 @@ struct log *log_new(char *name)
 	return l;
 }
 
-UINT log_append(struct log *l,struct slice *sk,struct slice *sv)
+UINT log_append(struct log *l, struct slice *sk, struct slice *sv)
 {
 	char *line;
 	struct buffer *buf = l->buf;
 	int len;
 	UINT db_offset = l->db_alloc;
 
-	if(write(l->fd_db,sv->data,sv->len) != sv->len){
-		__DEBUG("%s","data aof **ERROR**");
+	if (write(l->fd_db, sv->data, sv->len) != sv->len) {
+		__DEBUG("%s", "data aof **ERROR**");
 		return db_offset;
 	}
 
 	l->db_alloc += sv->len;
 
-	buffer_putint(buf,sk->len);
-	buffer_putnstr(buf,sk->data,sk->len);
-	buffer_putint(buf,db_offset);
+	buffer_putint(buf, sk->len);
+	buffer_putnstr(buf, sk->data, sk->len);
+	buffer_putint(buf, db_offset);
 
-	len=buf->NUL;
-	line=buffer_detach(buf);
+	len = buf->NUL;
+	line = buffer_detach(buf);
 
-	if(write(l->fd,line,len) != len)
-		__DEBUG("%s,line is:%s","log aof **ERROR**",line);
+	if (write(l->fd, line, len) != len)
+		__DEBUG("%s,line is:%s", "log aof **ERROR**", line);
 
 
 	return db_offset;
@@ -136,7 +136,7 @@ UINT log_append(struct log *l,struct slice *sk,struct slice *sv)
 
 void log_free(struct log *l)
 {
-	if(l){
+	if (l) {
 		buffer_free(l->buf);
 		remove(l->name);
 		close(l->fd);

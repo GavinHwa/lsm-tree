@@ -61,7 +61,7 @@ void _buffer_extendby(struct buffer *b, int len)
 
 struct buffer *buffer_new(size_t reserve)
 {
-	struct buffer *b=malloc(sizeof(struct buffer));
+	struct buffer *b = malloc(sizeof(struct buffer));
 	b->buf = NULL;
 	b->NUL = 0;
 	b->buflen = 0;
@@ -111,10 +111,10 @@ void buffer_putc(struct buffer *b, const char c)
 	b->buf[b->NUL] = '\0';
 }
 
-void buffer_putint(struct buffer *b,int i)
+void buffer_putint(struct buffer *b, int i)
 {
-	unsigned int value=i;
-	_buffer_extendby(b,sizeof(int));
+	unsigned int value = i;
+	_buffer_extendby(b, sizeof(int));
 	b->buf[b->NUL++] = (char)(value);
 	b->buf[b->NUL++] = (char)(value >> 0x08);
 	b->buf[b->NUL++] = (char)(value >> 0x10);
@@ -132,8 +132,8 @@ char * buffer_detach(struct buffer *b)
 void buffer_dump(struct buffer *b)
 {
 	int i;
-	printf("--buffer dump:buflen<%d>,pos<%d>\n",b->buflen,b->NUL);
+	printf("--buffer dump:buflen<%d>,pos<%d>\n", b->buflen, b->NUL);
 
-	for(i=0;i<b->NUL;i++)
-		printf("	[%d] %c\n",i,b->buf[i]);
+	for (i = 0; i < b->NUL; i++)
+		printf("	[%d] %c\n", i, b->buf[i]);
 }
