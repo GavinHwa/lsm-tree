@@ -48,6 +48,8 @@ struct pool *_pool_new()
 {
 	unsigned int p_size = 8092 - sizeof(struct pool);
 	struct pool *pool = malloc(sizeof(struct pool) + p_size);
+
+	memset(pool, 0, p_size);
 	pool->next = NULL;
 	pool->ptr = (char*)(pool + 1);
 	pool->rem = p_size;
