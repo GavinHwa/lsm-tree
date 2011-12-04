@@ -5,7 +5,7 @@
 #include "platform.h"
 
 #define MAXLEVEL (15)
-#define SKIP_KSIZE (256)
+#define SKIP_KSIZE (64)
 
 typedef enum {ADD,DEL} OPT;
 
@@ -27,7 +27,6 @@ struct skiplist{
 };
 
 struct skiplist *skiplist_new(size_t size);
-void skiplist_init(struct skiplist *list);
 int skiplist_insert(struct skiplist *list, struct slice *sk, UINT val, OPT opt);
 struct skipnode *skiplist_lookup(struct skiplist *list, char *data);
 int skiplist_notfull(struct skiplist *list);

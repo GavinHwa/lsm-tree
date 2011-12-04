@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "sst.h"
 #include "index.h"
 #include "skiplist.h"
 #include "log.h"
@@ -48,11 +49,14 @@ struct index *index_new(char *name, int max_mtbl, int max_mtbl_size)
 	memset(idx->name, 0, INDEX_NSIZE);
 	memcpy(idx->name, name, INDEX_NSIZE);
 
-	/*mtable*/
+	/* mtable */
 	idx->mtbls = calloc(idx->max_mtbl, sizeof(struct skiplist*));
 	idx->mtbls[0] = skiplist_new(idx->max_mtbl_size);
 
-	/*log*/
+	/* sst */
+	idx->sst = sst_new();
+
+	/* log */
 	idx->log = log_new(name);
 
 	return idx;
@@ -80,7 +84,7 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 			__DEBUG("%s", "INFO: To do merge...");
 
 			for (i=0; i < idx->max_mtbl; i++) {
-				/*TODO:merge*/
+				sst_merge(idx->sst, idx->mtbls[i]);
 				skiplist_free(idx->mtbls[i]);
 			}
 

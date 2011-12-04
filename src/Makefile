@@ -11,19 +11,21 @@ CFLAGS =  -c -std=c99 -Wall $(DEBUG)
 LIB_OBJS =     \
 	./index.o  \
 	./log.o	   \
-	./stable.o \
+	./sst.o \
 	./buffer.o    \
 	./skiplist.o
 
 TEST_OBJS =\
 	./test_skiplist.o \
 	./test_index.o    \
+	./test_sst.o	\
 	./test_buffer.o
 
 TESTS = \
-	./test_skiplist \
-	./test_index    \
-	./test_buffer
+	./test-skiplist \
+	./test-index    \
+	./test-sst		\
+	./test-buffer
 
 LIBRARY = liblsmtree.a
 
@@ -43,16 +45,20 @@ cleanall:
 	
 	-rm -f *.log
 	-rm -f *.db
+	-rm -f *.sst
 
 $(LIBRARY): $(LIB_OBJS)
 	rm -f $@
 	$(AR) -rs $@ $(LIB_OBJS)
 
-test_skiplist: ./test_skiplist.o  $(TEST_OBJS) $(LIB_OBJS)
+test-skiplist: ./test_skiplist.o  $(TEST_OBJS) $(LIB_OBJS)
 	$(CC)	./test_skiplist.o $(SVR_OBJS) $(LIB_OBJS) -o $@
 
-test_index: ./test_index.o $(TEST_OBJS) $(LIB_OBJS)
+test-index: ./test_index.o $(TEST_OBJS) $(LIB_OBJS)
 	$(CC) 	 ./test_index.o $(SVR_OBJS) $(LIB_OBJS) -o $@
 
-test_buffer: ./test_buffer.o $(TEST_OBJS) $(LIB_OBJS)
+test-buffer: ./test_buffer.o $(TEST_OBJS) $(LIB_OBJS)
 	$(CC) 	 ./test_buffer.o $(SVR_OBJS) $(LIB_OBJS) -o $@
+
+test-sst: ./test_sst.o $(TEST_OBJS) $(LIB_OBJS)
+	$(CC) 	 ./test_sst.o $(SVR_OBJS) $(LIB_OBJS) -o $@

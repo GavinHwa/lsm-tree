@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include "index.h"
 #include "debug.h"
 #include "util.h"
@@ -7,15 +8,29 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define LOOP (5000000)
-#define MAX_MTBL (7)
-#define MAX_MTBL_SIZE (300000)
+#define LOOP (1000002)
+#define MAX_MTBL (5)
+#define MAX_MTBL_SIZE (200000)
+
+long long ustime(void)
+{
+	struct timeval tv;
+	long long ust;
+
+	gettimeofday(&tv, NULL);
+	ust = ((long long)tv.tv_sec)*1000000;
+	ust += tv.tv_usec;
+	return ust / 1000000;
+}
 
 int main()
 {
 	int i,ret;
 	char key[KSIZE];
 	char val[VSIZE];
+
+	long long start,end;
+	start = ustime();
 
 	struct slice sk, sv;
 
@@ -34,7 +49,14 @@ int main()
 			__DEBUG("%s,key:<%s>,value:<%s>", "ERROR: Write failed....", key, val);
 	}
 
-	__DEBUG("%s:count<%d>", "INFO: Finish index build test", LOOP); 
+	end = ustime();
+
+	__DEBUG("%s:count<%d>,cost:<%llu>,<%llu>opts/sec", 
+			"INFO: Finish index build test",
+			LOOP, 
+			(end - start),
+			LOOP / (end -start)
+			); 
 
 	return 0;
 

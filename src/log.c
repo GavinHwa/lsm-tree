@@ -109,8 +109,8 @@ struct log *log_new(char *name)
 UINT log_append(struct log *l, struct slice *sk, struct slice *sv)
 {
 	char *line;
-	struct buffer *buf = l->buf;
 	int len;
+	struct buffer *buf = l->buf;
 	UINT db_offset = l->db_alloc;
 
 	if (write(l->fd_db, sv->data, sv->len) != sv->len) {
@@ -132,6 +132,14 @@ UINT log_append(struct log *l, struct slice *sk, struct slice *sv)
 
 
 	return db_offset;
+}
+
+
+void log_trunc(struct log *l)
+{
+	buffer_clear(l->buf);
+	remove(l->name);
+	l->fd = open(l->name, LSM_CREAT_FLAGS, 0644);
 }
 
 void log_free(struct log *l)

@@ -125,7 +125,6 @@ char * buffer_detach(struct buffer *b)
 {
 	char *buffer = b->buf;
 	b->NUL = 0;
-	b->buflen = 0;
 	return buffer;
 }
 

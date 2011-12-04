@@ -5,13 +5,21 @@
 
 #define INDEX_NSIZE (64)
 
+struct indexmeta{
+	struct slice *from;
+	struct slice *to;
+	char idx_name[INDEX_NSIZE];
+};
+
 struct index{
 	int lsn;
+	int meta_lsn;
 	int max_mtbl;
 	int max_mtbl_size;
 	char name[INDEX_NSIZE];
-	struct skiplist **mtbls;
 	struct log *log;
+	struct sst *sst;
+	struct skiplist **mtbls;
 };
 
 struct index *index_new(char *name, int max_mtbls, int max_mtbl_size);
