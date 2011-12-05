@@ -11,6 +11,7 @@ struct meta_node{
 	char begin[SKIP_KSIZE];
 	char index_name[SKIP_KSIZE];
 	uint32_t count;
+	uint32_t lsn;
 };
 
 struct meta{

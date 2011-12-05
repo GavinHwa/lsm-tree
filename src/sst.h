@@ -2,9 +2,10 @@
 #define _SST_H
 
 #include <stdint.h>
+#include "skiplist.h"
+#include "meta.h"
 #include "util.h"
 
-#define SST_NSIZE (64)
 
 /*
 * +--------+--------+--------+--------+
@@ -25,13 +26,15 @@ struct sst_footer{
 };
 
 struct sst{
-	char name[SST_NSIZE];
-	size_t lsn;
+	char name[SKIP_KSIZE];
+	uint32_t lsn;
+	uint32_t cur_lsn;
 	int fd;
+	struct meta *meta;
 };
 
 struct sst *sst_new();
-void sst_merge(struct sst *sst, void *list);
+void sst_merge(struct sst *sst, struct skiplist *list);
 void sst_free(struct sst *sst);
 
 #endif

@@ -9,6 +9,7 @@ struct meta *meta_new()
 {
 	struct meta *m = malloc(sizeof(struct meta));
 	m->sn = 0;
+	m->size = 0;
 
 	return m;
 }
@@ -37,8 +38,9 @@ void meta_set(struct meta *meta, struct meta_node *node)
 	while (left < right) {
 		size_t i = (right -left) / 2 +left;
 		int cmp = strcmp(node->begin, meta->nodes[i].begin);
-		if (cmp == 0)
+		if (cmp == 0) {
 			return ;
+		}
 
 		if (cmp < 0)
 			right = i;
@@ -58,11 +60,12 @@ void meta_dump(struct meta *meta)
 	printf("--Meta dump:count<%d>\n", meta->size);
 	for (i = 0; i< meta->size; i++) {
 		struct meta_node n = meta->nodes[i];
-		printf("	(%d) begin:<%s>,indexname:<%s>,hascount:<%d>\n",
+		printf("	(%d) begin:<%s>,indexname:<%s>,hascount:<%d>,lsn:<%d>\n",
 				i,
 				n.begin,
 				n.index_name,
-				n.count);
+				n.count,
+				n.lsn);
 	}
 }
 
