@@ -32,5 +32,6 @@ struct sst{
 
 struct sst *sst_new();
 void sst_merge(struct sst *sst, void *list);
+void sst_free(struct sst *sst);
 
 #endif

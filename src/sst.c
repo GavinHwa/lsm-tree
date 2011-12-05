@@ -166,3 +166,9 @@ void sst_merge(struct sst *sst, void *list)
 	}
 
 }
+
+void sst_free(struct sst *sst)
+{
+	if (sst)
+		free(sst);
+}

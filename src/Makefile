@@ -13,18 +13,21 @@ LIB_OBJS =     \
 	./log.o	   \
 	./sst.o \
 	./buffer.o    \
+	./meta.o	\
 	./skiplist.o
 
 TEST_OBJS =\
 	./test_skiplist.o \
 	./test_index.o    \
 	./test_sst.o	\
+	./test_meta.o	\
 	./test_buffer.o
 
 TESTS = \
 	./test-skiplist \
 	./test-index    \
 	./test-sst		\
+	./test-meta		\
 	./test-buffer
 
 LIBRARY = liblsmtree.a
@@ -62,3 +65,6 @@ test-buffer: ./test_buffer.o $(TEST_OBJS) $(LIB_OBJS)
 
 test-sst: ./test_sst.o $(TEST_OBJS) $(LIB_OBJS)
 	$(CC) 	 ./test_sst.o $(SVR_OBJS) $(LIB_OBJS) -o $@
+
+test-meta: ./test_meta.o $(TEST_OBJS) $(LIB_OBJS)
+	$(CC) 	 ./test_meta.o $(SVR_OBJS) $(LIB_OBJS) -o $@
