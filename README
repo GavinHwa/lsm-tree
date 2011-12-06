@@ -15,9 +15,10 @@ LAYOUT
 HOW TODO
 ==========
  $make test_index		//indices build test
- $make test_buffer		//buffer test
- $make test_skiplist		//skiplist test  
 
+BENCHMARK
+=========
+Finish index build test:count<10000001>,cost:<114>,<87719>opts/sec
 
  Drafted By BohuTANG <overred.shuttler at gmail dot com>
  2011
