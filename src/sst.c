@@ -39,7 +39,7 @@
 #include "sst.h"
 #include "debug.h"
 
-#define SST_MAX (50000)
+#define SST_MAX (25000)
 
 struct sst *sst_new()
 {
@@ -180,8 +180,10 @@ struct skipnode *_flush_old_merge(struct sst *sst, struct skiplist *lmerge, stru
 	char sst_name[SKIP_KSIZE];
 	size_t count = lmerge->count;
 
-	if (count <= SST_MAX)
+	if (count <= SST_MAX) {
+		skiplist_free(lmerge);
 		return x;
+	}
 
 	/* 1) flush old merge list */
 	int wcount = SST_MAX;
@@ -214,7 +216,7 @@ struct skipnode *_flush_old_merge(struct sst *sst, struct skiplist *lmerge, stru
 		}while (i * SST_MAX < count);
 	}
 
-	free(lmerge);
+	skiplist_free(lmerge);
 	return x;
 }
 
