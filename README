@@ -14,7 +14,7 @@ LAYOUT
 
 HOW TODO
 ==========
- $make test_index		//indices build test
+ $make test-index		//indices test build
 
 BENCHMARK
 =========
