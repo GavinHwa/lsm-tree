@@ -58,6 +58,7 @@ int main()
 			LOOP / (end -start)
 			); 
 
+	index_free(idx);
 	return 0;
 
 }

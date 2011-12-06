@@ -321,6 +321,8 @@ void sst_merge(struct sst *sst, struct skiplist *list)
 
 void sst_free(struct sst *sst)
 {
-	if (sst)
+	if (sst) {
+		meta_free(sst->meta);
 		free(sst);
+	}
 }
