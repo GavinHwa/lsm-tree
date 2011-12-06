@@ -8,7 +8,7 @@
 #define META_NODE_SIZE sizeof(struct meta_node)
 
 struct meta_node{
-	char begin[SKIP_KSIZE];
+	char end[SKIP_KSIZE];
 	char index_name[SKIP_KSIZE];
 	uint32_t count;
 	uint32_t lsn;

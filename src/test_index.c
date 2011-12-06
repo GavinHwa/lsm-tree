@@ -8,9 +8,9 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define LOOP (1000002)
-#define MAX_MTBL (5)
-#define MAX_MTBL_SIZE (200000)
+#define LOOP (1000001)
+#define MAX_MTBL (3)
+#define MAX_MTBL_SIZE (250000)
 
 long long ustime(void)
 {
@@ -35,7 +35,7 @@ int main()
 	struct slice sk, sv;
 
 	struct index *idx = index_new("test_idx", MAX_MTBL, MAX_MTBL_SIZE);
-	for (i=0; i < LOOP; i++) {
+	for (i = 0; i < LOOP; i++) {
 		snprintf(key, KSIZE, "key:%d", i);
 		snprintf(val, VSIZE, "val:%d", i);
 

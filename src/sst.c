@@ -1,4 +1,5 @@
- /* Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ /* This is a complex 'sstable' implemention, merge all mtable to on-disk indices 
+ * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,41 +39,45 @@
 #include "sst.h"
 #include "debug.h"
 
-#define SST_MAX (200000)
+#define SST_MAX (50000)
 
 struct sst *sst_new()
 {
 	struct sst *s = malloc(sizeof(struct sst));
 	s->lsn = 0;
+
 	/* TODO: init all index-meta */
 	s->meta = meta_new();
 
 	return s;
 }
-
-
-void *_write_mmap(struct sst *sst, struct skipnode *n,size_t from, size_t count)
+/*
+ * Write node to index file
+ * If need is true,means this index-file is new-created.
+ * need add IT to meta informations.
+ */
+void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need)
 {
 	int result;
+	int fd = sst->fd;
 	size_t map_size;
 	struct sst_footer footer;
 	struct skipnode *nodes;
-
-	struct skipnode *first = n;
-	struct skipnode *x = n;
+	struct skipnode *last;
 
 	footer.count = count;
+
 	map_size = footer.count * sizeof(struct skipnode);
 
 	/* Write map file */
-	result = lseek(sst->fd, map_size-1, SEEK_SET);
+	result = lseek(fd, map_size-1, SEEK_SET);
 	if (result == -1) {
 		perror("Error: write mmap");
 		close(sst->fd);
 		return NULL;
 	}
 
-	result = write(sst->fd, "", 1);
+	result = write(fd, "", 1);
 	if (result == -1) {
 		perror("Error: write mmap");
 		close(sst->fd);
@@ -80,9 +85,9 @@ void *_write_mmap(struct sst *sst, struct skipnode *n,size_t from, size_t count)
 	}
 
 	/* File is ready to mmap */
-	nodes = mmap(0, map_size, PROT_READ | PROT_WRITE, MAP_SHARED, sst->fd, 0);
+	nodes = mmap(0, map_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (nodes == MAP_FAILED) {
-		close(sst->fd);
+		close(fd);
 		perror("Error mapping the file");
 		return NULL;
 	}
@@ -90,43 +95,44 @@ void *_write_mmap(struct sst *sst, struct skipnode *n,size_t from, size_t count)
 	int i;
 	for (i = 0 ; i < footer.count; i++) {
 		memcpy(&nodes[i], x, sizeof(struct skipnode));
+		last = x;
 		x = x->forward[0];
 	}
-	
 
 	/* Unmap and free*/
 	if (munmap(nodes, map_size) == -1) {
-		close(sst->fd);
+		close(fd);
 		perror("ERROR: sst_merge unmap merge");
 		return NULL;
 	}
 
-	result = write(sst->fd, &footer, sizeof(struct sst_footer));
+	result = write(fd, &footer, sizeof(struct sst_footer));
 	if (result == -1) {
 		perror("Error: write mmap");
 		close(sst->fd);
 		return NULL;
 	}
 
-	close(sst->fd);
+	close(fd);
 
-	/* Set meta */
-	struct meta_node mn;
+	if(need){
+		/* Set meta */
+		struct meta_node mn;
 
-	memset(mn.begin, 0, SKIP_KSIZE);
-	memcpy(mn.begin, first->key, SKIP_KSIZE);
+		memset(mn.end, 0, SKIP_KSIZE);
+		memcpy(mn.end, last->key, SKIP_KSIZE);
 
-	memset(mn.index_name, 0, SKIP_KSIZE);
-	memcpy(mn.index_name, sst->name, SKIP_KSIZE);
+		memset(mn.index_name, 0, SKIP_KSIZE);
+		memcpy(mn.index_name, sst->name, SKIP_KSIZE);
 
-	mn.count = footer.count;
-	mn.lsn = sst->meta->size;
+		mn.count = footer.count;
+		mn.lsn = sst->meta->size;
 
-	meta_set(sst->meta, &mn);
-	__DEBUG(" firsrt key:<%s>,index name:<%s>,lsn:<%d>", first->key, sst->name,mn.lsn);
+		meta_set(sst->meta, &mn);
+		__DEBUG("INFO: Last key:<%s>,index name:<%s>,count:<%d>,lsn:<%d>", last->key, sst->name,footer.count,mn.lsn);
+	}
 
-	return x;
-
+	return last;
 }
 
 struct skiplist *_read_mmap(struct sst *sst, size_t count)
@@ -165,90 +171,149 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	return lmerge;
 }
 
-
-void sst_merge(struct sst *sst, struct skiplist *list)
+/*
+ * If current index-file is not with previous key's index-file
+ * need to flush merge cache to disk
+ */
+struct skipnode *_flush_old_merge(struct sst *sst, struct skiplist *lmerge, struct skipnode *x, int *miss)
 {
 	char sst_name[SKIP_KSIZE];
-	struct skipnode *x= list->hdr->forward[0];
-	/* First time,index is NULL,need to be created */
-	if (sst->meta->size == 0) {
+	size_t count = lmerge->count;
+
+	if (count <= SST_MAX)
+		return x;
+
+	/* 1) flush old merge list */
+	int wcount = SST_MAX;
+	if(wcount > count){
+		wcount = count;
+		x = _write_mmap(sst,x, wcount, 0);
+		*miss = wcount;
+	}else{
+		int i = 1;
+		/* a)write SST_MAX */
+		x = _write_mmap(sst, x ,i*SST_MAX, 0);
+		i++;
+
+		/* b): wirte to new index for rest */
+		do {
+			size_t wcount = SST_MAX;
+			memset(sst_name, 0, SKIP_KSIZE);
+			snprintf(sst_name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+
+			memset(sst->name, 0, SKIP_KSIZE);
+			memcpy(sst->name, sst_name, SKIP_KSIZE);
+
+			sst->fd = open(sst->name, O_RDWR | O_CREAT, 0644);
+			if (i*SST_MAX> count)
+				wcount = count-(i-1)*SST_MAX;
+
+			x = _write_mmap(sst, x, wcount, 1);
+			*miss = wcount;
+			i++;
+		}while (i * SST_MAX < count);
+	}
+
+	free(lmerge);
+	return x;
+}
+
+/*
+ * Flush the list's rest nodes to disk
+ */
+struct skipnode *_flush_cur_list(struct sst *sst, struct skiplist *list, struct skipnode *x, int *miss)
+{
+	char sst_name[SKIP_KSIZE];
+	size_t count = list->count - *miss;
+	int i = 1;
+
+	if (count == 0)
+		return x;
+
+	do {
+		size_t wcount = SST_MAX;
 		memset(sst_name, 0, SKIP_KSIZE);
-		snprintf(sst_name, SKIP_KSIZE, "%d.sst", sst->lsn); 
+		snprintf(sst_name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
 
 		memset(sst->name, 0, SKIP_KSIZE);
 		memcpy(sst->name, sst_name, SKIP_KSIZE);
-		
+
 		sst->fd = open(sst->name, O_RDWR | O_CREAT, 0644);
-		sst->lsn = 0;
+		if (i*SST_MAX> count)
+			wcount = count-(i-1)*SST_MAX;
 
-		/* write to index file */
-		_write_mmap(sst, x, 0, list->count);
-		__DEBUG("INFO: First write,index name:<%s> ...", sst->name);
-	
+		x = _write_mmap(sst, x, wcount, 1);
+		i++;
+
+	}while (i * SST_MAX < count);
+
+	return x;
+}
+
+void sst_merge(struct sst *sst, struct skiplist *list)
+{
+	int miss = 0;
+	struct skipnode *x= list->hdr->forward[0];
+
+	/* First time,index is NULL,need to be created */
+	if (sst->meta->size == 0) {
+		x = _flush_cur_list(sst, list, x, &miss);
 	} else {
-		size_t clsn = 0;
 		struct skiplist *lmerge;
-		struct skipnode *mx;
-		struct meta_node *mnode = meta_get(sst->meta, x->key);
-		size_t count = list->count;
-
-
-		clsn = mnode->lsn;
-		memset(sst->name, 0, SKIP_KSIZE);
-		memcpy(sst->name, mnode->index_name, SKIP_KSIZE);
-
 		sst->fd = open(sst->name, O_RDWR, 0644);
-		if(sst->fd == -1) {
-			perror("Error: open index name");
-			return;
-		}
-
-		/* Get merge list */
 		lmerge = _read_mmap(sst, list->count);
-		mx = lmerge->hdr->forward[0];
 
-		/* Ready to merge list */
-		for (int i = 0; i < count; i++) {
-			mnode = meta_get(sst->meta, x->key);
-			if (mnode->lsn != clsn) {
-				
-				/* First to write back old merge list
-				 * And free merge list
-				 */
-				/* TODO:split  */
-				size_t m_count = lmerge->count;
-				_write_mmap(sst, mx, 0, m_count);
-				m_count -= SST_MAX;
-				free(lmerge);
+		for (int i = 0; i < list->count; i++) {
+			struct meta_node *mn = meta_get(sst->meta, x->key);
+			if (mn == NULL) {
+				__DEBUG("Big key over key:<%s>, i is:<%d>",x->key,i);
 
-				/* Read new mmap from different index name 
-				 * Creat a new merge list
-				 */
-				memset(sst->name, 0, SKIP_KSIZE);
-				memcpy(sst->name, mnode->index_name, SKIP_KSIZE);
-				sst->fd = open(sst->name, O_RDWR, 0644);
-				lmerge = _read_mmap(sst, list->count);
+				/* Flush old merge list */
+				x = _flush_old_merge(sst, lmerge, x, &miss);
+				x = _flush_cur_list(sst, list, x, &i);
 
-				mx = lmerge->hdr->forward[0];
-
-				clsn = mnode->lsn;
+				return;
 			}
 
-			/* Insert new record into merge list */
-			struct slice sk;
-			sk.len = SKIP_KSIZE;
-			sk.data = x->key;
-			skiplist_insert(lmerge, &sk, x->val, x->opt);
+			int cmp = strcmp(mn->index_name, sst->name);
+			if(cmp ==0){
+				struct slice sk;
+				sk.len = SKIP_KSIZE;
+				sk.data = x->key;
+				skiplist_insert(lmerge, &sk, x->val, x->opt);
+			} else {
+				/*
+				   __DEBUG("INFO:index changed, key:<%s>,list first:<%s>,index:<%s>,meta file:<%s>,i:<%d>,listcount:<%d>,mergecount:<%d>",
+						x->key,
+						list->hdr->forward[0]->key,
+						sst->name, 
+						mn->index_name,
+						i,
+						list->count,
+						lmerge->count);
+				*/
+
+				/* 1)flush old merge list */
+				x = _flush_old_merge(sst, lmerge, x, &miss);
+				i += miss;
+
+				/* 2)open the new index */
+				memset(sst->name, 0, SKIP_KSIZE);
+				memcpy(sst->name, mn->index_name, SKIP_KSIZE);
+				sst->fd = open(sst->name, O_RDWR , 0644);
+				lmerge = _read_mmap(sst, list->count);
+				
+				struct slice sk;
+				sk.len = SKIP_KSIZE;
+				sk.data = x->key;
+				skiplist_insert(lmerge, &sk, x->val, x->opt);
+			}
 
 			x = x->forward[0];
 		}
-
-		/* Write back index file */
-		size_t m_count = lmerge->count;
-
-		/* TODO:split index if over MAX */
-		_write_mmap(sst, mx, 0, m_count);
-		free(lmerge);
+		
+		/* flush old merge list */
+		x = _flush_old_merge(sst, lmerge, x, &miss);
 	}
 }
 
