@@ -29,7 +29,6 @@ struct sst{
 	char name[SKIP_KSIZE];
 	uint32_t lsn;
 	uint32_t cur_lsn;
-	int fd;
 	struct meta *meta;
 };
 

@@ -118,13 +118,11 @@ int skiplist_notfull(struct skiplist *list)
 	return 0;
 }
 
-int skiplist_insert(struct skiplist *list, struct slice *sk, uint64_t val, OPT opt) 
+int skiplist_insert(struct skiplist *list, char *key, UINT val, OPT opt) 
 {
 	int i, new_level;
 	struct skipnode *update[MAXLEVEL+1];
 	struct skipnode *x;
-
-	char *key = sk->data;
 
 	if (!skiplist_notfull(list))
 		return 0;
@@ -156,7 +154,8 @@ int skiplist_insert(struct skiplist *list, struct slice *sk, uint64_t val, OPT o
 	if ((x =_pool_alloc(list,sizeof(struct skipnode) + new_level*sizeof(struct skipnode *))) == 0)
 		__DEBUG("%s", "ERROR: Alloc Memory *ERROR*");
 
-	memcpy(x->key, key, sk->len);
+	memset(x->key, 0, SKIP_KSIZE);
+	memcpy(x->key, key, SKIP_KSIZE);
 	x->val = val;
 	x->opt = opt;
 
@@ -167,6 +166,11 @@ int skiplist_insert(struct skiplist *list, struct slice *sk, uint64_t val, OPT o
 	list->count++;
 
 	return(1);
+}
+
+int skiplist_insert_node(struct skiplist *list, struct skipnode *node)
+{
+	return skiplist_insert(list, node->key, node->val, node->opt);
 }
 
 void skiplist_delete(struct skiplist *list, char* data) 
@@ -216,7 +220,7 @@ struct skipnode *skiplist_lookup(struct skiplist *list, char* data)
 
 void skiplist_dump(struct skiplist *list)
 {
-	int i;
+	int i = 0;
 	struct skipnode *x = list->hdr->forward[0];
 
 	printf("--skiplist dump:level<%d>,size:<%d>,count:<%d>\n",
@@ -224,9 +228,9 @@ void skiplist_dump(struct skiplist *list)
 			(int)list->size,
 			(int)list->count);
 
-	for (i=0; i<list->count; i++) {
+	while( x != NIL) {
 		printf("	[%d]key:<%s>;val<%llu>;opt<%s>\n",
-				i,
+				i++,
 				x->key,
 				x->val,
 				x->opt == ADD?"ADD":"DEL");

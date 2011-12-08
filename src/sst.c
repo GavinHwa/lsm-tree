@@ -59,28 +59,34 @@ struct sst *sst_new()
 void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need)
 {
 	int result;
-	int fd = sst->fd;
+	int fd;
 	size_t map_size;
 	struct sst_footer footer;
 	struct skipnode *nodes;
-	struct skipnode *last;
+	struct skipnode *last, *first;
+
+	first = x;
 
 	footer.count = count;
 
 	map_size = footer.count * sizeof(struct skipnode);
+	if (need)
+		fd = open(sst->name, O_RDWR | O_CREAT, 0644);
+	else
+		fd = open(sst->name, O_RDWR, 0644);
 
 	/* Write map file */
 	result = lseek(fd, map_size-1, SEEK_SET);
 	if (result == -1) {
 		perror("Error: write mmap");
-		close(sst->fd);
+		close(fd);
 		return NULL;
 	}
 
 	result = write(fd, "", 1);
 	if (result == -1) {
 		perror("Error: write mmap");
-		close(sst->fd);
+		close(fd);
 		return NULL;
 	}
 
@@ -109,11 +115,9 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need)
 	result = write(fd, &footer, sizeof(struct sst_footer));
 	if (result == -1) {
 		perror("Error: write mmap");
-		close(sst->fd);
+		close(fd);
 		return NULL;
 	}
-
-	close(fd);
 
 	if(need){
 		/* Set meta */
@@ -126,13 +130,14 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need)
 		memcpy(mn.index_name, sst->name, SKIP_KSIZE);
 
 		mn.count = footer.count;
-		mn.lsn = sst->meta->size;
 
 		meta_set(sst->meta, &mn);
-		__DEBUG("INFO: Last key:<%s>,index name:<%s>,count:<%d>,lsn:<%d>", last->key, sst->name,footer.count,mn.lsn);
 	}
 
-	return last;
+	close(fd);
+
+	__DEBUG("INFO:(Write) key:<%s>--<%s>,cur:<%s>,count:<%d>", first->key, last->key, sst->name, footer.count);
+	return x;
 }
 
 struct skiplist *_read_mmap(struct sst *sst, size_t count)
@@ -142,31 +147,31 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	struct sst_footer footer;
 	struct skipnode *nodes;
 	struct skiplist *lmerge;
+	int fd = open(sst->name, O_RDWR, 0644);
 
 	/* Read index footer */
-	size_t file_end = lseek(sst->fd, 0, SEEK_END);
-	result = lseek(sst->fd, file_end - sizeof(struct sst_footer), SEEK_SET);
+	size_t file_end = lseek(fd, 0, SEEK_END);
+	result = lseek(fd, file_end - sizeof(struct sst_footer), SEEK_SET);
 	if (result == -1) {
 		perror("Error: sst_merge,read footer");
 	}
-	read(sst->fd, &footer, sizeof(struct sst_footer));
+	read(fd, &footer, sizeof(struct sst_footer));
 
 	/* 1) Mmap */
 	map_size = footer.count * sizeof(struct skipnode);
-	nodes =  mmap(0, map_size, PROT_READ, MAP_SHARED, sst->fd, 0);
+	nodes =  mmap(0, map_size, PROT_READ, MAP_SHARED, fd, 0);
 
 	/* 2) Load into merge list */
 	lmerge = skiplist_new(footer.count + count +1);
 	for (int i = 0; i < footer.count; i++) {
-		struct slice sk;
-		sk.len = SKIP_KSIZE;
-		sk.data = nodes[i].key;
-		skiplist_insert(lmerge, &sk, nodes[i].val, nodes[i].opt);
+		skiplist_insert_node(lmerge, &nodes[i]);
 	}
 
 	/* Unmap and Free */
 	if (munmap(nodes, map_size) == -1)
 		perror("Error: sst_merge,munmap");
+
+	close(fd);
 
 	return lmerge;
 }
@@ -175,154 +180,140 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
  * If current index-file is not with previous key's index-file
  * need to flush merge cache to disk
  */
-struct skipnode *_flush_old_merge(struct sst *sst, struct skiplist *lmerge, struct skipnode *x, int *miss)
+void _flush_merge_list(struct sst *sst, struct skipnode *x, size_t count)
 {
-	char sst_name[SKIP_KSIZE];
-	size_t count = lmerge->count;
+	if(count < SST_MAX){
+		_write_mmap(sst, x, count, 0);
+	} else {
+		int mod = (count - SST_MAX) / SST_MAX;
+		int rest = count % SST_MAX;
 
-	if (count <= SST_MAX) {
-		skiplist_free(lmerge);
-		return x;
-	}
+		x = _write_mmap(sst, x, SST_MAX, 0);
 
-	/* 1) flush old merge list */
-	int wcount = SST_MAX;
-	if(wcount > count){
-		wcount = count;
-		x = _write_mmap(sst,x, wcount, 0);
-		*miss = wcount;
-	}else{
-		int i = 1;
-		/* a)write SST_MAX */
-		x = _write_mmap(sst, x ,i*SST_MAX, 0);
-		i++;
-
-		/* b): wirte to new index for rest */
-		do {
-			size_t wcount = SST_MAX;
-			memset(sst_name, 0, SKIP_KSIZE);
-			snprintf(sst_name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
-
+		for (int i = 0; i < mod -1; i++) {
 			memset(sst->name, 0, SKIP_KSIZE);
-			memcpy(sst->name, sst_name, SKIP_KSIZE);
+			snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+			x = _write_mmap(sst, x, SST_MAX, 1);
+		}
 
-			sst->fd = open(sst->name, O_RDWR | O_CREAT, 0644);
-			if (i*SST_MAX> count)
-				wcount = count-(i-1)*SST_MAX;
-
-			x = _write_mmap(sst, x, wcount, 1);
-			*miss = wcount;
-			i++;
-		}while (i * SST_MAX < count);
-	}
-
-	skiplist_free(lmerge);
-	return x;
+		/*merge the last one*/
+		memset(sst->name, 0, SKIP_KSIZE);
+		snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+		x = _write_mmap(sst, x, SST_MAX + rest, 1);
+	}	
 }
 
 /*
  * Flush the list's rest nodes to disk
  */
-struct skipnode *_flush_cur_list(struct sst *sst, struct skiplist *list, struct skipnode *x, int *miss)
+void _flush_new_list(struct sst *sst, struct skipnode *x, size_t count)
 {
-	char sst_name[SKIP_KSIZE];
-	size_t count = list->count - *miss;
-	int i = 1;
+	if(count < SST_MAX){
+		memset(sst->name, 0, SKIP_KSIZE);
+		snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+		_write_mmap(sst, x, count, 1);
+	} else {
+		int mod = (count - SST_MAX) / SST_MAX;
+		int rest = count % SST_MAX;
 
-	if (count == 0)
-		return x;
-
-	do {
-		size_t wcount = SST_MAX;
-		memset(sst_name, 0, SKIP_KSIZE);
-		snprintf(sst_name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+		for (int i = 0; i < mod - 1; i++) {
+			memset(sst->name, 0, SKIP_KSIZE);
+			snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+			x = _write_mmap(sst, x, SST_MAX, 1);
+		}
 
 		memset(sst->name, 0, SKIP_KSIZE);
-		memcpy(sst->name, sst_name, SKIP_KSIZE);
+		snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+		x = _write_mmap(sst, x, SST_MAX + rest, 1);
+	}
+}
 
-		sst->fd = open(sst->name, O_RDWR | O_CREAT, 0644);
-		if (i*SST_MAX> count)
-			wcount = count-(i-1)*SST_MAX;
+void _flush_list(struct sst *sst, struct skipnode *x,struct skipnode *hdr,int flush_count)
+{
+	int pos = 0;
+	int count = flush_count;
+	struct skipnode *cur = x;
+	struct skipnode *first = hdr;
+	struct skiplist *merge = NULL;
 
-		x = _write_mmap(sst, x, wcount, 1);
-		i++;
+	while(cur != first) {
+		struct meta_node *meta_info = meta_get(sst->meta, cur->key);
 
-	}while (i * SST_MAX < count);
+		/* If m is NULL, cur->key more larger than meta's largest area
+		 * need to create new index-file
+		 */
+		if(meta_info == NULL){
 
-	return x;
+			/* If merge is NULL,it has no merge*/
+			if(merge != NULL) {
+				struct skipnode *h = merge->hdr->forward[0];
+				_flush_merge_list(sst, h, merge->count);
+				skiplist_free(merge);
+				merge = NULL;
+			}
+
+			/* Flush the last nodes to disk */
+			_flush_new_list(sst, x, count - pos);
+
+			return;
+		} else {
+
+			/* If m is not NULL,means found the index of the cur
+			 * We need:
+			 * 1) compare the sst->name with meta index name
+			 *		a)If 0: add the cur to merge,and continue
+			 *		b)others:
+			 *			b1)Flush the merge list to disk
+			 *			b2)Open the meta's mmap,and load all blocks to new merge,add cur to merge
+			 */
+			int cmp = strcmp(sst->name, meta_info->index_name);
+			if(cmp == 0) {
+				if (merge == NULL)
+					merge = _read_mmap(sst,count);	
+
+				skiplist_insert_node(merge, cur);
+			} else {
+				if(merge){
+					struct skipnode *h = merge->hdr->forward[0];
+					_flush_merge_list(sst, h, merge->count);
+					skiplist_free(merge);
+					merge = NULL;
+				}
+
+				memset(sst->name, 0, SKIP_KSIZE);
+				memcpy(sst->name, meta_info->index_name, SKIP_KSIZE);
+				merge = _read_mmap(sst, count);
+
+				/* Add to merge list */
+				skiplist_insert_node(merge, cur);
+			}
+
+		}
+
+		pos++;
+		cur = cur->forward[0];
+	}
+
+	if (merge) {
+	//	_flush_merge_list(sst, merge->hdr->forward[0], merge->count);
+		skiplist_free(merge);
+	}
 }
 
 void sst_merge(struct sst *sst, struct skiplist *list)
 {
-	int miss = 0;
 	struct skipnode *x= list->hdr->forward[0];
 
 	/* First time,index is NULL,need to be created */
-	if (sst->meta->size == 0) {
-		x = _flush_cur_list(sst, list, x, &miss);
-	} else {
-		struct skiplist *lmerge;
-		sst->fd = open(sst->name, O_RDWR, 0644);
-		lmerge = _read_mmap(sst, list->count);
+	if (sst->meta->size == 0)
+		 _flush_new_list(sst, x, list->count);
+	else
+		_flush_list(sst, x, list->hdr, list->count);
 
-		for (int i = 0; i < list->count; i++) {
-			struct meta_node *mn = meta_get(sst->meta, x->key);
-			if (mn == NULL) {
-				__DEBUG("Big key over key:<%s>, i is:<%d>",x->key,i);
-
-				/* Flush old merge list */
-				x = _flush_old_merge(sst, lmerge, x, &miss);
-				x = _flush_cur_list(sst, list, x, &i);
-
-				return;
-			}
-
-			int cmp = strcmp(mn->index_name, sst->name);
-			if(cmp ==0){
-				struct slice sk;
-				sk.len = SKIP_KSIZE;
-				sk.data = x->key;
-				skiplist_insert(lmerge, &sk, x->val, x->opt);
-			} else {
-				/*
-				   __DEBUG("INFO:index changed, key:<%s>,list first:<%s>,index:<%s>,meta file:<%s>,i:<%d>,listcount:<%d>,mergecount:<%d>",
-						x->key,
-						list->hdr->forward[0]->key,
-						sst->name, 
-						mn->index_name,
-						i,
-						list->count,
-						lmerge->count);
-				*/
-
-				/* 1)flush old merge list */
-				x = _flush_old_merge(sst, lmerge, x, &miss);
-				i += miss;
-
-				/* 2)open the new index */
-				memset(sst->name, 0, SKIP_KSIZE);
-				memcpy(sst->name, mn->index_name, SKIP_KSIZE);
-				sst->fd = open(sst->name, O_RDWR , 0644);
-				lmerge = _read_mmap(sst, list->count);
-				
-				struct slice sk;
-				sk.len = SKIP_KSIZE;
-				sk.data = x->key;
-				skiplist_insert(lmerge, &sk, x->val, x->opt);
-			}
-
-			x = x->forward[0];
-		}
-		
-		/* flush old merge list */
-		x = _flush_old_merge(sst, lmerge, x, &miss);
-	}
 }
 
 void sst_free(struct sst *sst)
 {
-	if (sst) {
-		meta_free(sst->meta);
+	if (sst)
 		free(sst);
-	}
 }

@@ -8,9 +8,9 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define LOOP (1000001)
-#define MAX_MTBL (3)
-#define MAX_MTBL_SIZE (250000)
+#define LOOP (5000000)
+#define MAX_MTBL (1)
+#define MAX_MTBL_SIZE (500000)
 
 long long ustime(void)
 {
@@ -58,7 +58,6 @@ int main()
 			LOOP / (end -start)
 			); 
 
-	index_free(idx);
 	return 0;
 
 }

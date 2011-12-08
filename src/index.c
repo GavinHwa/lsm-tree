@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
+
 #include "sst.h"
 #include "index.h"
 #include "skiplist.h"
@@ -66,7 +66,7 @@ struct index *index_new(char *name, int max_mtbl, int max_mtbl_size)
 int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 {
 	int i;
-	uint64_t db_offset;
+	UINT db_offset;
 	struct skiplist *list;
 
 	db_offset = log_append(idx->log, sk, sv);
@@ -88,28 +88,16 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 				skiplist_free(idx->mtbls[i]);
 			}
 
-			__DEBUG("%s", "INFO: Finished free all mtables");
-
 			idx->lsn = 0;
 
 			log_free(idx->log);
 			idx->log = log_new(idx->name);
 		}
 
-		__DEBUG("%s", "INFO: Create new mtable");
-
 		list = skiplist_new(idx->max_mtbl_size);
 		idx->mtbls[idx->lsn] = list;
 	}
-	skiplist_insert(list, sk, db_offset, ADD);
+	skiplist_insert(list, sk->data, db_offset, ADD);
 
 	return 1;
-}
-
-void index_free(struct index *idx)
-{
-	if (idx) {
-		sst_free(idx->sst);
-		free(idx);
-	}
 }

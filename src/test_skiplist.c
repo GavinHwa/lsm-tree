@@ -6,26 +6,22 @@
 #include "util.h"
 #include "platform.h"
 
-#define MAXNUM (29)
+#define MAXNUM (49)
 int main()
 {
 	int k;
 	char key[SKIP_KSIZE];
 
-	struct slice sk;
 	struct skiplist *list;
 	struct skipnode *node;
 
-	list = skiplist_new(MAXNUM-1);
+	list = skiplist_new(MAXNUM);
 
 	for (k=0; k < MAXNUM; k++) {
 		snprintf(key, SKIP_KSIZE, "key:%d", k);
-		
-		sk.data = key;
-		sk.len = SKIP_KSIZE;
 
 		if (skiplist_notfull(list))
-			skiplist_insert(list, &sk, k, ADD);
+			skiplist_insert(list, key, k, ADD);
 		else
 			__DEBUG("%s", "WARNING: You need more skiplists...");
 	}

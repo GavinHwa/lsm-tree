@@ -11,18 +11,15 @@ int main()
 
 	struct sst *sst;
 
-	struct slice sk;
 	struct skiplist *list,*list2;
 
 	sst = sst_new();
 	list = skiplist_new(LOOP);
 	for (i = 0; i < LOOP; i++) {
 		snprintf(key, SKIP_KSIZE, "key:%d", i);
-		sk.data = key;
-		sk.len = SKIP_KSIZE;
 
 		if (skiplist_notfull(list))
-			skiplist_insert(list, &sk, i, ADD);
+			skiplist_insert(list, key, i, ADD);
 		else
 			__DEBUG("%s","WARNING: You need more skiplists...");
 	}
@@ -33,11 +30,9 @@ int main()
 	list2 = skiplist_new(LOOP);
 	for (i = 0; i < LOOP; i++) {
 		snprintf(key, SKIP_KSIZE, "key2:%d", i);
-		sk.data = key;
-		sk.len = SKIP_KSIZE;
 
 		if (skiplist_notfull(list2))
-			skiplist_insert(list2, &sk, i, ADD);
+			skiplist_insert(list2, key, i, ADD);
 		else
 			__DEBUG("%s","WARNING: You need more skiplists...");
 	}
