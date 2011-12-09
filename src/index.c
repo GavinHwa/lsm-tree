@@ -81,12 +81,12 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 		if (idx->lsn < idx->max_mtbl-1)
 			idx->lsn++;
 		else {
-			__DEBUG("%s", "INFO: To do merge...");
-
-			for (i=0; i < idx->max_mtbl; i++) {
+			__DEBUG("%s", "INFO:Merge start...");
+			for (i = 0; i < idx->max_mtbl; i++) {
 				sst_merge(idx->sst, idx->mtbls[i]);
 				skiplist_free(idx->mtbls[i]);
 			}
+			__DEBUG("%s", "INFO:Merge end...");
 
 			idx->lsn = 0;
 

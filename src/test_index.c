@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/time.h>
 #include "index.h"
 #include "debug.h"
@@ -8,7 +9,7 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define LOOP (5000000)
+#define LOOP (3000000)
 #define MAX_MTBL (1)
 #define MAX_MTBL_SIZE (500000)
 
@@ -23,20 +24,26 @@ long long ustime(void)
 	return ust / 1000000;
 }
 
+void random_key(char *key,int length) {
+	char salt[36]= "abcdefghijklmnopqrstuvwxyz0123456789";
+	memset(key, 0, length);
+	for (int i = 0; i < length; i++)
+		key[i] = salt[rand() % length];
+}
+
 int main()
 {
-	int i,ret;
+	int i;
+	long long start,end;
+	struct slice sk, sv;
+
 	char key[KSIZE];
 	char val[VSIZE];
 
-	long long start,end;
 	start = ustime();
-
-	struct slice sk, sv;
-
 	struct index *idx = index_new("test_idx", MAX_MTBL, MAX_MTBL_SIZE);
 	for (i = 0; i < LOOP; i++) {
-		snprintf(key, KSIZE, "key:%d", i);
+		random_key(key, KSIZE);
 		snprintf(val, VSIZE, "val:%d", i);
 
 		sk.len = KSIZE;
@@ -44,9 +51,11 @@ int main()
 		sv.len = VSIZE;
 		sv.data = val;
 
-		ret = index_add(idx, &sk, &sv);
-		if (!ret)
-			__DEBUG("%s,key:<%s>,value:<%s>", "ERROR: Write failed....", key, val);
+		index_add(idx, &sk, &sv);
+		if ((i % 10000) == 0) {
+			fprintf(stderr,"random write finished %d ops%30s\r", i, "");
+			fflush(stderr);
+		}
 	}
 
 	end = ustime();

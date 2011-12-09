@@ -1,10 +1,11 @@
 #ifndef _SKIPLIST_H
 #define _SKIPLIST_H
 
+#include "util.h"
 #include "platform.h"
 
 #define MAXLEVEL (15)
-#define SKIP_KSIZE (64)
+#define SKIP_KSIZE (32)
 
 typedef enum {ADD,DEL} OPT;
 
