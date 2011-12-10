@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "sst.h"
 #include "index.h"
@@ -66,7 +67,7 @@ struct index *index_new(char *name, int max_mtbl, int max_mtbl_size)
 int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 {
 	int i;
-	UINT db_offset;
+	uint64_t db_offset;
 	struct skiplist *list;
 
 	db_offset = log_append(idx->log, sk, sv);

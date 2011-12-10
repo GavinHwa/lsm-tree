@@ -39,7 +39,7 @@
 #include "sst.h"
 #include "debug.h"
 
-#define SST_MAX (15000)
+#define SST_MAX (20000)
 
 struct sst *sst_new()
 {
@@ -61,27 +61,24 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	int result;
 	int fd;
 	size_t map_size;
-	struct sst_footer footer;
 	struct skipnode *nodes;
 	struct skipnode *last;
 
-	footer.count = count;
-
-	map_size = footer.count * sizeof(struct skipnode);
+	map_size = count * sizeof(struct skipnode);
 	if (need_new)
 		fd = open(sst->name, O_RDWR | O_CREAT, 0644);
 	else
 		fd = open(sst->name, O_RDWR, 0644);
 
 	/* Write map file */
-	result = lseek(fd, map_size -1, SEEK_SET);
+	result = lseek(fd, map_size-1, SEEK_SET);
 	if (result == -1) {
 		perror("Error: write mmap");
 		close(fd);
 		return NULL;
 	}
 
-	result = write(fd, "", 1);
+	result = write(fd, "\0", 1);
 	if (result == -1) {
 		perror("Error: write mmap");
 		close(fd);
@@ -97,7 +94,7 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	}
 
 	int i;
-	for (i = 0 ; i < footer.count; i++) {
+	for (i = 0 ; i < count; i++) {
 		memcpy(&nodes[i], x, sizeof(struct skipnode));
 		last = x;
 		x = x->forward[0];
@@ -110,18 +107,11 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 		return NULL;
 	}
 
-	lseek(fd, map_size, SEEK_CUR);
-	result = write(fd, &footer, sizeof(struct sst_footer));
-	if (result == -1) {
-		perror("Error: write mmap");
-		close(fd);
-		return NULL;
-	}
 	
 	/* Set meta */
 	struct meta_node mn;
 
-	mn.count = footer.count;
+	mn.count = count;
 	memset(mn.end, 0, SKIP_KSIZE);
 	memcpy(mn.end, last->key, SKIP_KSIZE);
 
@@ -141,29 +131,20 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 
 struct skiplist *_read_mmap(struct sst *sst, size_t count)
 {
-	int result;
 	size_t map_size;
-	struct sst_footer footer;
+	size_t map_count;
 	struct skipnode *nodes;
 	struct skiplist *merge;
 	int fd = open(sst->name, O_RDWR, 0644);
-
-	/* Read index footer */
-	result = lseek(fd, -sizeof(struct sst_footer), SEEK_END);
-	if (result == -1) {
-		perror("Error: sst_merge,read footer");
-	}
-	read(fd, &footer, sizeof(struct sst_footer));
-
-	lseek(fd, 0, SEEK_SET);
+	map_size = lseek(fd,0,SEEK_END);
+	map_count =map_size / sizeof(struct skipnode);
 
 	/* 1) Mmap */
-	map_size = footer.count * sizeof(struct skipnode);
 	nodes =  mmap(0, map_size, PROT_READ, MAP_SHARED, fd, 0);
 
 	/* 2) Load into merge list */
-	merge = skiplist_new(footer.count + count + 1);
-	for (int i = 0; i < footer.count; i++) {
+	merge = skiplist_new(map_count + count + 1);
+	for (int i = 0; i < map_count; i++) {
 		skiplist_insert_node(merge, &nodes[i]);
 	}
 

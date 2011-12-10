@@ -61,12 +61,12 @@ int _file_exists(const char *path)
 	return 0;
 }
 
-UINT _getsize(int fd) {
+uint64_t _getsize(int fd) {
 	struct stat sb;
 	if (fstat(fd,&sb) == -1)
 		return 0;
 
-	return (UINT)sb.st_size;
+	return (uint64_t)sb.st_size;
 }
 
 struct log *log_new(char *name)
@@ -106,12 +106,12 @@ struct log *log_new(char *name)
 	return l;
 }
 
-UINT log_append(struct log *l, struct slice *sk, struct slice *sv)
+uint64_t log_append(struct log *l, struct slice *sk, struct slice *sv)
 {
 	char *line;
 	int len;
 	struct buffer *buf = l->buf;
-	UINT db_offset = l->db_alloc;
+	uint64_t db_offset = l->db_alloc;
 
 	if (write(l->fd_db, sv->data, sv->len) != sv->len) {
 		__DEBUG("%s:length:<%d>", "ERROR: Data AOF **ERROR**", sv->len);

@@ -17,13 +17,7 @@
 * +--------+--------+--------+--------+
 * |             sst block N           |
 * +--------+--------+--------+--------+
-* |  start   |   end   | block counts |
-* +--------+--------+--------+--------+
 */
-
-struct sst_footer{
-	uint32_t count;
-};
 
 struct sst{
 	char name[SKIP_KSIZE];

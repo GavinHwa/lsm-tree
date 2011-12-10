@@ -6,7 +6,6 @@
 #endif
 
 #if defined(__linux__)
-	# define UINT long long unsigned int
 	# define open_db open64
 	# define lseek lseek
 	# define fstat fstat

@@ -118,7 +118,7 @@ int skiplist_notfull(struct skiplist *list)
 	return 0;
 }
 
-int skiplist_insert(struct skiplist *list, char *key, UINT val, OPT opt) 
+int skiplist_insert(struct skiplist *list, char *key, uint64_t val, OPT opt) 
 {
 	int i, new_level;
 	struct skipnode *update[MAXLEVEL+1];

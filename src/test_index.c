@@ -9,7 +9,7 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define LOOP (3000000)
+#define LOOP (5000000)
 #define MAX_MTBL (1)
 #define MAX_MTBL_SIZE (500000)
 
