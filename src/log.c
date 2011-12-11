@@ -61,21 +61,14 @@ int _file_exists(const char *path)
 	return 0;
 }
 
-uint64_t _getsize(int fd) {
-	struct stat sb;
-	if (fstat(fd,&sb) == -1)
-		return 0;
-
-	return (uint64_t)sb.st_size;
-}
-
-struct log *log_new(const char *basedir, const char *name)
+struct log *log_new(const char *basedir, const char *name, int islog)
 {
 	struct log *l;
 	char log_name[LOG_NSIZE];
 	char db_name[LOG_NSIZE];
 
 	l = malloc(sizeof(struct log));
+	l->islog = islog;
 
 	memset(log_name, 0 ,LOG_NSIZE);
 	snprintf(log_name, LOG_NSIZE, "%s/%s.log", basedir, name);
@@ -93,8 +86,7 @@ struct log *log_new(const char *basedir, const char *name)
 
 	if (_file_exists(db_name)) {
 		l->fd_db = open(db_name, LSM_OPEN_FLAGS, 0644);
-		l->db_alloc = _getsize(l->fd_db);
-		lseek(l->fd, l->db_alloc, SEEK_SET);
+		l->db_alloc = lseek(l->fd_db, 0, SEEK_END);
 	} else {
 		l->fd_db = open(db_name, LSM_CREAT_FLAGS, 0644);
 		l->db_alloc = 0;
@@ -120,15 +112,17 @@ uint64_t log_append(struct log *l, struct slice *sk, struct slice *sv)
 
 	l->db_alloc += sv->len;
 
-	buffer_putint(buf, sk->len);
-	buffer_putnstr(buf, sk->data, sk->len);
-	buffer_putint(buf, db_offset);
+	if (l->islog) {
+		buffer_putint(buf, sk->len);
+		buffer_putnstr(buf, sk->data, sk->len);
+		buffer_putint(buf, db_offset);
 
-	len = buf->NUL;
-	line = buffer_detach(buf);
+		len = buf->NUL;
+		line = buffer_detach(buf);
 
-	if (write(l->fd, line, len) != len)
-		__DEBUG("%s,buffer is:%s,buffer length:<%d>", "ERROR: Log AOF **ERROR**", line, len);
+		if (write(l->fd, line, len) != len)
+			__DEBUG("%s,buffer is:%s,buffer length:<%d>", "ERROR: Log AOF **ERROR**", line, len);
+	}
 
 
 	return db_offset;

@@ -45,7 +45,7 @@ struct blk_header{
 	char end[SKIP_KSIZE];
 };
 
-#define SST_MAX (20000)
+#define SST_MAX (50000)
 
 struct sst *sst_new(const char *basedir)
 {

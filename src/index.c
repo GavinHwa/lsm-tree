@@ -37,6 +37,7 @@
 #include "log.h"
 #include "debug.h"
 
+#define TOLOG (1)
 #define DB_DIR "dbs"
 
 struct index *index_new(const char *basedir, const char *name, int max_mtbl_size)
@@ -65,7 +66,7 @@ struct index *index_new(const char *basedir, const char *name, int max_mtbl_size
 	idx->sst = sst_new(idx->basedir);
 
 	/* log */
-	idx->log = log_new(idx->basedir, idx->name);
+	idx->log = log_new(idx->basedir, idx->name, TOLOG);
 
 	return idx;
 }
@@ -90,8 +91,7 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 		skiplist_free(idx->mtbls[0]);
 		__DEBUG("%s", "INFO:Merge end...");
 
-		log_free(idx->log);
-		idx->log = log_new(idx->basedir, idx->name);
+		log_trunc(idx->log);
 
 		list = skiplist_new(idx->max_mtbl_size);
 		idx->mtbls[idx->lsn] = list;
