@@ -40,7 +40,7 @@ int main()
 	char val[VSIZE];
 
 	start = ustime();
-	struct index *idx = index_new("test_idx", MAX_MTBL_SIZE);
+	struct index *idx = index_new(getcwd(NULL, 0), "test_idx", MAX_MTBL_SIZE);
 	for (i = 0; i < LOOP; i++) {
 		random_key(key, KSIZE);
 		snprintf(val, VSIZE, "val:%d", i);

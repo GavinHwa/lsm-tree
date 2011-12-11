@@ -37,13 +37,23 @@
 #include "log.h"
 #include "debug.h"
 
-struct index *index_new(char *name, int max_mtbl_size)
+#define DB_DIR "dbs"
+
+struct index *index_new(const char *basedir, const char *name, int max_mtbl_size)
 {
+	char dir[INDEX_NSIZE];
 	struct index *idx = malloc(sizeof(struct index));
+
+	memset(dir, 0, INDEX_NSIZE);
+	snprintf(dir, INDEX_NSIZE, "%s/%s", basedir, DB_DIR);
+	_ensure_dir_exists(dir);
 	
 	idx->lsn = 0;
 	idx->max_mtbl = 1;
 	idx->max_mtbl_size = max_mtbl_size;
+	memset(idx->basedir, 0, INDEX_NSIZE);
+	memcpy(idx->basedir, dir, INDEX_NSIZE);
+
 	memset(idx->name, 0, INDEX_NSIZE);
 	memcpy(idx->name, name, INDEX_NSIZE);
 
@@ -52,10 +62,10 @@ struct index *index_new(char *name, int max_mtbl_size)
 	idx->mtbls[0] = skiplist_new(idx->max_mtbl_size);
 
 	/* sst */
-	idx->sst = sst_new();
+	idx->sst = sst_new(idx->basedir);
 
 	/* log */
-	idx->log = log_new(name);
+	idx->log = log_new(idx->basedir, idx->name);
 
 	return idx;
 }
@@ -81,7 +91,7 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 		__DEBUG("%s", "INFO:Merge end...");
 
 		log_free(idx->log);
-		idx->log = log_new(idx->name);
+		idx->log = log_new(idx->basedir, idx->name);
 
 		list = skiplist_new(idx->max_mtbl_size);
 		idx->mtbls[idx->lsn] = list;

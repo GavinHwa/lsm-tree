@@ -14,6 +14,7 @@ LIB_OBJS =     \
 	./sst.o \
 	./buffer.o    \
 	./meta.o	\
+	./util.o	\
 	./skiplist.o
 
 TEST_OBJS =\
@@ -46,9 +47,9 @@ cleanall:
 	-rm -f $(TEST_OBJS)
 	-rm -f $(TESTS)
 	
-	-rm -f *.log
+	-rm -rf dbs
 	-rm -f *.db
-	-rm -f *.sst
+	-rm -f *.log
 
 $(LIBRARY): $(LIB_OBJS)
 	rm -f $@

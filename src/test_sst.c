@@ -13,7 +13,7 @@ int main()
 
 	struct skiplist *list,*list2;
 
-	sst = sst_new();
+	sst = sst_new(getcwd(NULL, 0));
 	list = skiplist_new(LOOP);
 	for (i = 0; i < LOOP; i++) {
 		snprintf(key, SKIP_KSIZE, "key:%d", i);

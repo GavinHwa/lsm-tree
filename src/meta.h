@@ -3,13 +3,14 @@
 
 #include <stdint.h>
 #include "skiplist.h"
+#include "util.h"
 
 #define META_SIZE (10000)
 #define META_NODE_SIZE sizeof(struct meta_node)
 
 struct meta_node{
 	char end[SKIP_KSIZE];
-	char index_name[SKIP_KSIZE];
+	char index_name[SST_NSIZE];
 	uint32_t count;
 	uint32_t lsn;
 };

@@ -47,13 +47,14 @@ struct blk_header{
 
 #define SST_MAX (20000)
 
-struct sst *sst_new()
+struct sst *sst_new(const char *basedir)
 {
 	struct sst *s = malloc(sizeof(struct sst));
 	s->lsn = 0;
 
 	/* TODO: init all index-meta */
 	s->meta = meta_new();
+	memcpy(s->basedir, basedir, SST_NSIZE);
 
 	return s;
 }
@@ -111,8 +112,8 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	memset(mn.end, 0, SKIP_KSIZE);
 	memcpy(mn.end, last->key, SKIP_KSIZE);
 
-	memset(mn.index_name, 0, SKIP_KSIZE);
-	memcpy(mn.index_name, sst->name, SKIP_KSIZE);
+	memset(mn.index_name, 0, SST_NSIZE);
+	memcpy(mn.index_name, sst->name, SST_NSIZE);
 	
 	if (need_new) 
 		meta_set(sst->meta, &mn);
@@ -181,14 +182,14 @@ void _flush_merge_list(struct sst *sst, struct skipnode *x, size_t count)
 		rem = count % SST_MAX;
 
 		for (int i = 0; i < mul; i++) {
-			memset(sst->name, 0, SKIP_KSIZE);
-			snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+			memset(sst->name, 0, SST_NSIZE);
+			snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
 			x = _write_mmap(sst, x, SST_MAX, 1);
 		}
 
 		/* The remain part,will be larger than SST_MAX */
-		memset(sst->name, 0, SKIP_KSIZE);
-		snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+		memset(sst->name, 0, SST_NSIZE);
+		snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
 
 		x = _write_mmap(sst, x, SST_MAX + rem, 1);
 	}	
@@ -200,21 +201,21 @@ void _flush_new_list(struct sst *sst, struct skipnode *x, size_t count)
 	int rem;
 
 	if (count < (SST_MAX * 2)) {
-		memset(sst->name, 0, SKIP_KSIZE);
-		snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+		memset(sst->name, 0, SST_NSIZE);
+		snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
 		x = _write_mmap(sst, x, count, 1);
 	} else {
 		mul = count / SST_MAX;
 		rem = count % SST_MAX;
 
 		for (int i = 0; i < (mul - 1); i++) {
-			memset(sst->name, 0, SKIP_KSIZE);
-			snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+			memset(sst->name, 0, SST_NSIZE);
+			snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
 			x = _write_mmap(sst, x, SST_MAX, 1);
 		}
 
-		memset(sst->name, 0, SKIP_KSIZE);
-		snprintf(sst->name, SKIP_KSIZE, "%d.sst", sst->meta->size); 
+		memset(sst->name, 0, SST_NSIZE);
+		snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
 		x = _write_mmap(sst, x, SST_MAX + rem, 1);
 	}
 }
@@ -273,8 +274,8 @@ void _flush_list(struct sst *sst, struct skipnode *x,struct skipnode *hdr,int fl
 					merge = NULL;
 				}
 
-				memset(sst->name, 0, SKIP_KSIZE);
-				memcpy(sst->name, meta_info->index_name, SKIP_KSIZE);
+				memset(sst->name, 0, SST_NSIZE);
+				memcpy(sst->name, meta_info->index_name, SST_NSIZE);
 				merge = _read_mmap(sst, count);
 
 				/* Add to merge list */

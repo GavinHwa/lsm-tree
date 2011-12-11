@@ -6,7 +6,6 @@
 #include "meta.h"
 #include "util.h"
 
-
 /*
 * +--------+--------+--------+--------+
 * |             sst block 1           |
@@ -26,13 +25,14 @@ struct sst_block{
 };
 
 struct sst{
-	char name[SKIP_KSIZE];
+	char basedir[SST_NSIZE];
+	char name[SST_NSIZE];
 	uint32_t lsn;
 	uint32_t cur_lsn;
 	struct meta *meta;
 };
 
-struct sst *sst_new();
+struct sst *sst_new(const char *basedir);
 void sst_merge(struct sst *sst, struct skiplist *list);
 void sst_free(struct sst *sst);
 

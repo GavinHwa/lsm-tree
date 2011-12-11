@@ -69,7 +69,7 @@ uint64_t _getsize(int fd) {
 	return (uint64_t)sb.st_size;
 }
 
-struct log *log_new(char *name)
+struct log *log_new(const char *basedir, const char *name)
 {
 	struct log *l;
 	char log_name[LOG_NSIZE];
@@ -78,11 +78,11 @@ struct log *log_new(char *name)
 	l = malloc(sizeof(struct log));
 
 	memset(log_name, 0 ,LOG_NSIZE);
-	snprintf(log_name, LOG_NSIZE, "%s.log", name);
+	snprintf(log_name, LOG_NSIZE, "%s/%s.log", basedir, name);
 	memcpy(l->name, log_name, LOG_NSIZE);
 
 	memset(db_name, 0, LOG_NSIZE);
-	snprintf(db_name, LOG_NSIZE, "%s.db", name);
+	snprintf(db_name, LOG_NSIZE, "%s/%s.db", basedir, name);
 
 	if (_file_exists(log_name)) {
 		l->fd = open(log_name, LSM_OPEN_FLAGS, 0644);

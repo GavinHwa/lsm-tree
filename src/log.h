@@ -5,8 +5,6 @@
 #include "util.h"
 #include "platform.h"
 
-#define LOG_NSIZE (256)
-
 struct log{
 	int fd;
 	int fd_db;
@@ -15,7 +13,7 @@ struct log{
 	struct buffer *buf;
 };
 
-struct log *log_new(char *name);
+struct log *log_new(const char *basedir, const char *name);
 uint64_t log_append(struct log *log, struct slice *sk, struct slice *sv);
 void log_trunc(struct log *log);
 void log_free(struct log *log);
