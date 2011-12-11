@@ -10,7 +10,7 @@
 #define VSIZE (20)
 
 #define LOOP (3000001)
-#define MAX_MTBL_SIZE (250000)
+#define MAX_MTBL_SIZE (1000000)
 
 long long ustime(void)
 {
