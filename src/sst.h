@@ -19,6 +19,12 @@
 * +--------+--------+--------+--------+
 */
 
+struct sst_block{
+	char key[SKIP_KSIZE];
+	uint64_t offset;
+	unsigned opt:1;
+};
+
 struct sst{
 	char name[SKIP_KSIZE];
 	uint32_t lsn;

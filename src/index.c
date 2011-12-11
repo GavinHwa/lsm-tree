@@ -37,21 +37,18 @@
 #include "log.h"
 #include "debug.h"
 
-#include "platform.h"
-
-
-struct index *index_new(char *name, int max_mtbl, int max_mtbl_size)
+struct index *index_new(char *name, int max_mtbl_size)
 {
 	struct index *idx = malloc(sizeof(struct index));
 	
 	idx->lsn = 0;
-	idx->max_mtbl = max_mtbl;
+	idx->max_mtbl = 1;
 	idx->max_mtbl_size = max_mtbl_size;
 	memset(idx->name, 0, INDEX_NSIZE);
 	memcpy(idx->name, name, INDEX_NSIZE);
 
 	/* mtable */
-	idx->mtbls = calloc(idx->max_mtbl, sizeof(struct skiplist*));
+	idx->mtbls = calloc(1, sizeof(struct skiplist*));
 	idx->mtbls[0] = skiplist_new(idx->max_mtbl_size);
 
 	/* sst */
@@ -66,7 +63,6 @@ struct index *index_new(char *name, int max_mtbl, int max_mtbl_size)
 
 int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 {
-	int i;
 	uint64_t db_offset;
 	struct skiplist *list;
 
@@ -79,21 +75,13 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	}
 
 	if (!skiplist_notfull(list)) {
-		if (idx->lsn < idx->max_mtbl-1)
-			idx->lsn++;
-		else {
-			__DEBUG("%s", "INFO:Merge start...");
-			for (i = 0; i < idx->max_mtbl; i++) {
-				sst_merge(idx->sst, idx->mtbls[i]);
-				skiplist_free(idx->mtbls[i]);
-			}
-			__DEBUG("%s", "INFO:Merge end...");
+		__DEBUG("%s", "INFO:Merge start...");
+		sst_merge(idx->sst, idx->mtbls[0]);
+		skiplist_free(idx->mtbls[0]);
+		__DEBUG("%s", "INFO:Merge end...");
 
-			idx->lsn = 0;
-
-			log_free(idx->log);
-			idx->log = log_new(idx->name);
-		}
+		log_free(idx->log);
+		idx->log = log_new(idx->name);
 
 		list = skiplist_new(idx->max_mtbl_size);
 		idx->mtbls[idx->lsn] = list;
@@ -101,4 +89,10 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	skiplist_insert(list, sk->data, db_offset, ADD);
 
 	return 1;
+}
+
+void index_free(struct index *idx)
+{
+	log_free(idx->log);
+	free(idx);
 }

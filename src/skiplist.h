@@ -2,8 +2,6 @@
 #define _SKIPLIST_H
 
 #include <stdint.h>
-#include "util.h"
-#include "platform.h"
 
 #define MAXLEVEL (15)
 #define SKIP_KSIZE (32)
@@ -13,7 +11,7 @@ typedef enum {ADD,DEL} OPT;
 struct skipnode{
     char key[SKIP_KSIZE];
 	uint64_t  val;
-	unsigned opt:2;                   
+	unsigned opt:1;                   
     struct skipnode *forward[1]; 
 	struct skipnode *next;
 };

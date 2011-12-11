@@ -9,9 +9,8 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define LOOP (5000000)
-#define MAX_MTBL (1)
-#define MAX_MTBL_SIZE (500000)
+#define LOOP (3000001)
+#define MAX_MTBL_SIZE (250000)
 
 long long ustime(void)
 {
@@ -41,7 +40,7 @@ int main()
 	char val[VSIZE];
 
 	start = ustime();
-	struct index *idx = index_new("test_idx", MAX_MTBL, MAX_MTBL_SIZE);
+	struct index *idx = index_new("test_idx", MAX_MTBL_SIZE);
 	for (i = 0; i < LOOP; i++) {
 		random_key(key, KSIZE);
 		snprintf(val, VSIZE, "val:%d", i);

@@ -39,6 +39,12 @@
 #include "sst.h"
 #include "debug.h"
 
+struct blk_header{
+	int count;
+	int crc;
+	char end[SKIP_KSIZE];
+};
+
 #define SST_MAX (20000)
 
 struct sst *sst_new()
@@ -58,56 +64,46 @@ struct sst *sst_new()
  */
 void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_new)
 {
-	int result;
+	int i;
 	int fd;
-	size_t map_size;
-	struct skipnode *nodes;
+	int sizes;
+	struct blk_header header;
 	struct skipnode *last;
+	struct sst_block *blks;
 
-	map_size = count * sizeof(struct skipnode);
+	sizes = count * sizeof(struct sst_block);
+
 	if (need_new)
 		fd = open(sst->name, O_RDWR | O_CREAT, 0644);
 	else
 		fd = open(sst->name, O_RDWR, 0644);
 
-	/* Write map file */
-	result = lseek(fd, map_size-1, SEEK_SET);
-	if (result == -1) {
-		perror("Error: write mmap");
-		close(fd);
-		return NULL;
-	}
+	blks = malloc(sizes);
 
-	result = write(fd, "\0", 1);
-	if (result == -1) {
-		perror("Error: write mmap");
-		close(fd);
-		return NULL;
-	}
-
-	/* File is ready to mmap */
-	nodes = mmap(0, map_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (nodes == MAP_FAILED) {
-		close(fd);
-		perror("Error mapping the file");
-		return NULL;
-	}
-
-	int i;
 	for (i = 0 ; i < count; i++) {
-		memcpy(&nodes[i], x, sizeof(struct skipnode));
+		memcpy(blks[i].key, x->key,SKIP_KSIZE);
+		blks[i].offset=x->val;
+		blks[i].opt=x->opt;
+
 		last = x;
 		x = x->forward[0];
 	}
 
-	/* Unmap and free*/
-	if (munmap(nodes, map_size) == -1) {
-		close(fd);
-		perror("ERROR: sst_merge unmap merge");
-		return NULL;
+	/* 1)Header write */
+	memcpy(header.end, last->key, SKIP_KSIZE);
+	header.count = count;
+	header .crc = 2011;
+	if (write(fd, &header, sizeof header) != sizeof header) {
+		perror("ERROR: write header....");
+		goto out;	
 	}
 
-	
+	/* 2)Blocks write */
+	if (write(fd, blks, sizes) != sizes) {
+		perror("ERROR: write blocks....");
+		goto out;	
+	}
+
 	/* Set meta */
 	struct meta_node mn;
 
@@ -117,13 +113,14 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 
 	memset(mn.index_name, 0, SKIP_KSIZE);
 	memcpy(mn.index_name, sst->name, SKIP_KSIZE);
-
 	
 	if (need_new) 
 		meta_set(sst->meta, &mn);
 	else 
 		meta_set_byname(sst->meta, &mn);
 
+out:
+	free(blks);
 	close(fd);
 
 	return x;
@@ -131,27 +128,38 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 
 struct skiplist *_read_mmap(struct sst *sst, size_t count)
 {
-	size_t map_size;
-	size_t map_count;
-	struct skipnode *nodes;
-	struct skiplist *merge;
-	int fd = open(sst->name, O_RDWR, 0644);
-	map_size = lseek(fd,0,SEEK_END);
-	map_count =map_size / sizeof(struct skipnode);
+	int i;
+	int fd;
+	int blk_sizes;
+	struct blk_header header;
+	struct sst_block *blks;
+	struct skiplist *merge = NULL;
+	
+	fd = open(sst->name, O_RDWR, 0644);
 
-	/* 1) Mmap */
-	nodes =  mmap(0, map_size, PROT_READ, MAP_SHARED, fd, 0);
+	/* 1)Header read */
+	if (read(fd, &header, sizeof header) != sizeof header) {
+		perror("ERROR: read header...");
+		goto out;
+	}
+	blk_sizes = header.count * sizeof(struct sst_block);
 
-	/* 2) Load into merge list */
-	merge = skiplist_new(map_count + count + 1);
-	for (int i = 0; i < map_count; i++) {
-		skiplist_insert_node(merge, &nodes[i]);
+	/* 2)Blocks read */
+	blks = malloc(blk_sizes);
+	if (read(fd, blks, blk_sizes) != blk_sizes) {
+		perror("ERROR: read blocks....");
+		free(blks);
+		goto out;
 	}
 
-	/* Unmap and Free */
-	if (munmap(nodes, map_size) == -1)
-		perror("Error: sst_merge,munmap");
+	/* 3)Merge */
+	merge = skiplist_new(header.count + count + 1);
+	for (i = 0; i < header.count; i++)
+		skiplist_insert(merge, blks[i].key, blks[i].offset, blks[i].opt);
 
+	free(blks);
+
+out:
 	close(fd);
 
 	return merge;
