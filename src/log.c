@@ -50,6 +50,7 @@
 #include "log.h"
 #include "debug.h"
 
+#define DB_MAGIC (2011)
 
 int _file_exists(const char *path)
 {
@@ -88,8 +89,11 @@ struct log *log_new(const char *basedir, const char *name, int islog)
 		l->fd_db = open(db_name, LSM_OPEN_FLAGS, 0644);
 		l->db_alloc = lseek(l->fd_db, 0, SEEK_END);
 	} else {
+		int magic = DB_MAGIC;
+
 		l->fd_db = open(db_name, LSM_CREAT_FLAGS, 0644);
-		l->db_alloc = 0;
+		write(l->fd_db, &magic, sizeof(int));
+		l->db_alloc = sizeof(int);
 	}
 
 	l->buf = buffer_new(256);

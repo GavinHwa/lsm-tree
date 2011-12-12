@@ -109,7 +109,11 @@ void *index_get(struct index *idx, struct slice *sk)
 		/* TODO:read data */
 
 	} else {
-		/* TODO:read from sst */
+		uint64_t off;
+		off = sst_getoff(idx->sst, sk);
+		if (off != 0) {
+			__DEBUG("INFO: index get,off:%llu",off);
+		}
 	}
 
 	return NULL;

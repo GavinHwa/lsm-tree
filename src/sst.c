@@ -356,6 +356,30 @@ void sst_merge(struct sst *sst, struct skiplist *list)
 
 }
 
+uint64_t sst_getoff(struct sst *sst, struct slice *sk)
+{
+	/* Have some bugs to fixed */
+	uint64_t off = 0UL;
+	struct skipnode *node;
+	struct skiplist *list;
+	struct meta_node *meta_info;
+
+	meta_info = meta_get(sst->meta, sk->data);
+	if(meta_info == NULL)
+		return 0UL;
+
+	memcpy(sst->name, meta_info->index_name, SST_NSIZE);
+	list = _read_mmap(sst, SST_MAX + 1);
+	node = skiplist_lookup(list, sk->data);
+
+	if (node) {
+		off = node->val;
+		skiplist_free(list);
+	}
+
+	return off;
+}
+
 void sst_free(struct sst *sst)
 {
 	if (sst)
