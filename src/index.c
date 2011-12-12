@@ -101,6 +101,20 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	return 1;
 }
 
+void *index_get(struct index *idx, struct slice *sk)
+{
+	struct skiplist *list = idx->mtbls[idx->lsn];
+	struct skipnode *node = skiplist_lookup(list, sk->data);
+	if (node) {
+		/* TODO:read data */
+
+	} else {
+		/* TODO:read from sst */
+	}
+
+	return NULL;
+}
+
 void index_free(struct index *idx)
 {
 	log_free(idx->log);

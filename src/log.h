@@ -12,6 +12,7 @@ struct log{
 	char name[LOG_NSIZE];
 	uint64_t db_alloc;
 	struct buffer *buf;
+	struct buffer *db_buf;
 };
 
 struct log *log_new(const char *basedir, const char *name, int islog);

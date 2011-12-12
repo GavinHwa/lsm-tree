@@ -34,7 +34,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/mman.h>
+#include <dirent.h>
 
 #include "sst.h"
 #include "debug.h"
@@ -46,16 +46,65 @@ struct blk_header{
 };
 
 #define SST_MAX (50000)
+#define BLK_MAGIC (20111225)
+
+
+void _sst_load(struct sst *sst)
+{
+	int fd;
+	struct dirent *de;
+	DIR *dd;
+
+	dd = opendir(sst->basedir);
+	while ((de = readdir(dd)) != NULL) {
+		if (strstr(de->d_name, ".sst")) {
+			struct blk_header header;
+			struct meta_node mn;
+			char sst_file[SST_NSIZE];
+
+			memset(sst_file, 0, SST_NSIZE);
+			snprintf(sst_file, SST_NSIZE, "%s/%s", sst->basedir, de->d_name);
+			
+			fd = open(sst_file, O_RDWR, 0644);
+			if (read(fd, &header, sizeof header) != sizeof header) {
+				perror("ERROR: sst load,read header...");
+				close(fd);
+			}
+
+			if (header.crc != BLK_MAGIC) {
+				close(fd);
+				__DEBUG("ERROR: block crc wrong,%d",header.crc);
+				continue;
+			}
+			
+			/* Set meta */
+			mn.count = header.count;
+			memset(mn.end, 0, SKIP_KSIZE);
+			memcpy(mn.end, header.end, SKIP_KSIZE);
+
+			memset(mn.index_name, 0, SST_NSIZE);
+			memcpy(mn.index_name, sst_file, SST_NSIZE);
+			meta_set(sst->meta, &mn);
+		}
+	}
+
+	close(fd);
+	closedir(dd);
+}
 
 struct sst *sst_new(const char *basedir)
 {
-	struct sst *s = malloc(sizeof(struct sst));
+	struct sst *s;
+
+	s = malloc(sizeof(struct sst));
 	s->lsn = 0;
 
-	/* TODO: init all index-meta */
 	s->meta = meta_new();
 	memcpy(s->basedir, basedir, SST_NSIZE);
 
+	/* SST files load */
+	_sst_load(s);
+	
 	return s;
 }
 /*
@@ -93,7 +142,7 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	/* 1)Header write */
 	memcpy(header.end, last->key, SKIP_KSIZE);
 	header.count = count;
-	header .crc = 2011;
+	header.crc = BLK_MAGIC;
 	if (write(fd, &header, sizeof header) != sizeof header) {
 		perror("ERROR: write header....");
 		goto out;	
@@ -138,9 +187,9 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	
 	fd = open(sst->name, O_RDWR, 0644);
 
-	/* 1)Header read */
+	/* 1)header read */
 	if (read(fd, &header, sizeof header) != sizeof header) {
-		perror("ERROR: read header...");
+		perror("error: read header...");
 		goto out;
 	}
 	blk_sizes = header.count * sizeof(struct sst_block);

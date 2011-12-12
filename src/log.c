@@ -93,6 +93,7 @@ struct log *log_new(const char *basedir, const char *name, int islog)
 	}
 
 	l->buf = buffer_new(256);
+	l->db_buf = buffer_new(1024);
 
 
 	return l;
@@ -101,17 +102,27 @@ struct log *log_new(const char *basedir, const char *name, int islog)
 uint64_t log_append(struct log *l, struct slice *sk, struct slice *sv)
 {
 	char *line;
+	char *db_line;
 	int len;
+	int db_len;
 	struct buffer *buf = l->buf;
+	struct buffer *db_buf = l->db_buf;
 	uint64_t db_offset = l->db_alloc;
 
-	if (write(l->fd_db, sv->data, sv->len) != sv->len) {
-		__DEBUG("%s:length:<%d>", "ERROR: Data AOF **ERROR**", sv->len);
+	/* DB write */
+	buffer_putint(db_buf, sv->len);
+	buffer_putnstr(db_buf, sv->data, sv->len);
+	db_len = db_buf->NUL;
+	db_line = buffer_detach(db_buf);
+
+	lseek(l->fd_db, l->db_alloc, SEEK_SET);
+	if (write(l->fd_db, db_line, db_len) != db_len) {
+		__DEBUG("%s:length:<%d>", "ERROR: Data AOF **ERROR**", db_len);
 		return db_offset;
 	}
+	l->db_alloc += db_len;
 
-	l->db_alloc += sv->len;
-
+	/* LOG write */
 	if (l->islog) {
 		buffer_putint(buf, sk->len);
 		buffer_putnstr(buf, sk->data, sk->len);

@@ -28,7 +28,6 @@ struct sst{
 	char basedir[SST_NSIZE];
 	char name[SST_NSIZE];
 	uint32_t lsn;
-	uint32_t cur_lsn;
 	struct meta *meta;
 };
 
