@@ -9,7 +9,7 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define LOOP (3000001)
+#define LOOP (5000001)
 #define MAX_MTBL_SIZE (1000000)
 
 long long ustime(void)
@@ -30,7 +30,7 @@ void random_key(char *key,int length) {
 		key[i] = salt[rand() % length];
 }
 
-int main()
+void add_test()
 {
 	int i;
 	long long start,end;
@@ -65,7 +65,46 @@ int main()
 			(end - start),
 			LOOP / (end -start)
 			); 
+}
 
+void read_test()
+{
+	int i;
+	int count = 10000;
+	long long start,end;
+	struct slice sk;
+
+	char key[KSIZE];
+
+	start = ustime();
+	struct index *idx = index_new(getcwd(NULL, 0), "test_idx", MAX_MTBL_SIZE);
+	for (i = 0; i < 10000; i++) {
+		random_key(key, KSIZE);
+		sk.len = KSIZE;
+		sk.data = key;
+
+		index_get(idx, &sk);
+		if ((i % 1000) == 0) {
+			fprintf(stderr,"random read finished %d ops%30s\r", i, "");
+			fflush(stderr);
+		}
+	}
+
+	end = ustime();
+
+	__DEBUG("%s:count<%d>,cost:<%llu>,<%llu>opts/sec", 
+			"INFO: Finish get test",
+			count, 
+			(end - start),
+			count / (end -start)
+			); 
+
+}
+
+int main()
+{
+	add_test();
+	read_test();
 	return 0;
 
 }

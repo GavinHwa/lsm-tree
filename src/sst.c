@@ -45,7 +45,7 @@ struct blk_header{
 	char end[SKIP_KSIZE];
 };
 
-#define SST_MAX (50000)
+#define SST_MAX (10000)
 #define BLK_MAGIC (20111225)
 
 
@@ -215,6 +215,55 @@ out:
 	return merge;
 }
 
+uint64_t _read_offset(struct sst *sst, const char *key)
+{
+	int fd;
+	int blk_sizes;
+	uint64_t off = 0UL;
+	struct blk_header header;
+	struct sst_block *blks;
+	
+	fd = open(sst->name, O_RDWR, 0644);
+
+	/* 1)header read */
+	if (read(fd, &header, sizeof header) != sizeof header) {
+		perror("ERROR: read offset header...");
+		close(fd);
+		return 0UL;
+	}
+	blk_sizes = header.count * sizeof(struct sst_block);
+
+	/* 2)Blocks read */
+	blks = malloc(blk_sizes);
+	if (read(fd, blks, blk_sizes) != blk_sizes) {
+		perror("ERROR: read offset blocks....");
+		goto out;
+	}
+
+	size_t left = 0, right = header.count, i;
+	while (left < right) {
+		i = (right -left) / 2 +left;
+		int cmp = strcmp(key, blks[i].key);
+		if (cmp == 0) {
+		    off = blks[i].offset;	
+			break ;
+		}
+
+		if (cmp < 0)
+			right = i;
+		else
+			left = i + 1;
+	}
+
+out:
+	free(blks);
+	close(fd);
+
+	return off;
+}
+
+
+
 void _flush_merge_list(struct sst *sst, struct skipnode *x, size_t count)
 {
 	int mul;
@@ -360,8 +409,6 @@ uint64_t sst_getoff(struct sst *sst, struct slice *sk)
 {
 	/* Have some bugs to fixed */
 	uint64_t off = 0UL;
-	struct skipnode *node;
-	struct skiplist *list;
 	struct meta_node *meta_info;
 
 	meta_info = meta_get(sst->meta, sk->data);
@@ -369,13 +416,7 @@ uint64_t sst_getoff(struct sst *sst, struct slice *sk)
 		return 0UL;
 
 	memcpy(sst->name, meta_info->index_name, SST_NSIZE);
-	list = _read_mmap(sst, SST_MAX + 1);
-	node = skiplist_lookup(list, sk->data);
-
-	if (node) {
-		off = node->val;
-		skiplist_free(list);
-	}
+	off = _read_offset(sst, sk->data);
 
 	return off;
 }
