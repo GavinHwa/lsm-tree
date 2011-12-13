@@ -5,7 +5,7 @@
 #include "skiplist.h"
 #include "util.h"
 
-#define META_SIZE (10000)
+#define META_SIZE (100000)
 #define META_NODE_SIZE sizeof(struct meta_node)
 
 struct meta_node{

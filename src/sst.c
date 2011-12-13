@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <sys/mman.h>
 
 #include "sst.h"
 #include "debug.h"
@@ -45,7 +46,7 @@ struct blk_header{
 	char end[SKIP_KSIZE];
 };
 
-#define SST_MAX (10000)
+#define SST_MAX (25000)
 #define BLK_MAGIC (20111225)
 
 
@@ -189,16 +190,15 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 
 	/* 1)header read */
 	if (read(fd, &header, sizeof header) != sizeof header) {
-		perror("error: read header...");
+		perror("Error:read_mmap,read header...");
 		goto out;
 	}
 	blk_sizes = header.count * sizeof(struct sst_block);
 
 	/* 2)Blocks read */
-	blks = malloc(blk_sizes);
-	if (read(fd, blks, blk_sizes) != blk_sizes) {
-		perror("ERROR: read blocks....");
-		free(blks);
+	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
+	if (blks == MAP_FAILED) {
+	    perror("Error:read_mmap, mmapping the file");
 		goto out;
 	}
 
@@ -206,8 +206,9 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	merge = skiplist_new(header.count + count + 1);
 	for (i = 0; i < header.count; i++)
 		skiplist_insert(merge, blks[i].key, blks[i].offset, blks[i].opt);
-
-	free(blks);
+	
+	if (munmap(blks, blk_sizes) == -1)
+		perror("Error:read_mmap un-mmapping the file");
 
 out:
 	close(fd);
@@ -227,16 +228,15 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 
 	/* 1)header read */
 	if (read(fd, &header, sizeof header) != sizeof header) {
-		perror("ERROR: read offset header...");
-		close(fd);
-		return 0UL;
+		perror("Error:read_offset,header...");
+		goto out;
 	}
-	blk_sizes = header.count * sizeof(struct sst_block);
 
 	/* 2)Blocks read */
-	blks = malloc(blk_sizes);
-	if (read(fd, blks, blk_sizes) != blk_sizes) {
-		perror("ERROR: read offset blocks....");
+	blk_sizes = header.count * sizeof(struct sst_block);
+	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
+	if (blks == MAP_FAILED) {
+	    perror("Error:read_offset, mmapping the file");
 		goto out;
 	}
 
@@ -254,9 +254,11 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 		else
 			left = i + 1;
 	}
+	
+	if (munmap(blks, blk_sizes) == -1)
+		perror("Error:read_offset, un-mmapping the file");
 
 out:
-	free(blks);
 	close(fd);
 
 	return off;
