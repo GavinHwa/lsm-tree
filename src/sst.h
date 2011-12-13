@@ -1,3 +1,11 @@
+/*
+ * LSM-Tree storage engine
+ * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ * All rights reserved.
+ * Code is licensed with BSD. See COPYING.BSD file.
+ *
+ */
+
 #ifndef _SST_H
 #define _SST_H
 
@@ -5,18 +13,6 @@
 #include "skiplist.h"
 #include "meta.h"
 #include "util.h"
-
-/*
-* +--------+--------+--------+--------+
-* |             sst block 1           |
-* +--------+--------+--------+--------+
-* |             sst block 2           |
-* +--------+--------+--------+--------+
-* |      ... all the other blocks ..  |
-* +--------+--------+--------+--------+
-* |             sst block N           |
-* +--------+--------+--------+--------+
-*/
 
 struct sst_block{
 	char key[SKIP_KSIZE];

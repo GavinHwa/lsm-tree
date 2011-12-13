@@ -1,3 +1,11 @@
+/*
+ * LSM-Tree storage engine
+ * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ * All rights reserved.
+ * Code is licensed with BSD. See COPYING.BSD file.
+ *
+ */
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
