@@ -66,10 +66,8 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	}
 
 	if (!skiplist_notfull(list)) {
-		__DEBUG("%s", "INFO:Merge start...");
 		sst_merge(idx->sst, idx->mtbls[0]);
 		skiplist_free(idx->mtbls[0]);
-		__DEBUG("%s", "INFO:Merge end...");
 
 		log_trunc(idx->log);
 

@@ -14,11 +14,27 @@ LAYOUT
 
 HOW TODO
 ==========
- $make test-index		//indices test build
+ $make bench
 
 BENCHMARK
 =========
-Finish index build test:count<10000001>,cost:<114>,<87719>opts/sec
+Keys:		16 bytes each
+Values:		20 bytes each
+Entries:	3000000
+IndexSize:	71.5 MB (estimated)
+DataSize:	68.7 MB (estimated)
+---------------------------------------------------------------------------------------------------
+LSM-Tree:	version 0.1(LSM-Tree storage engine)
+Date:		Tue Dec 13 17:27:58 2011
+CPU:		2 *  Intel(R) Pentium(R) Dual  CPU  T3200  @ 2.00GHz
+CPUCache:	1024 KB
+
++-----------------------------+----------------+------------------------------+-------------------+
+|Random-Write	(done:3000000): 0.000013 sec/op; 76923.1 writes/sec(estimated); cost:39.000(sec)
++-----------------------------+----------------+------------------------------+-------------------+
+|Random-Read	(done:100000): 0.000030 sec/op; 33333.3 reads /sec(estimated); cost:3.000(sec)
++-----------------------------+----------------+------------------------------+-------------------+
+
 
  Drafted By BohuTANG <overred.shuttler at gmail dot com>
  2011

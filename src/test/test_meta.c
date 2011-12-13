@@ -9,9 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "skiplist.h"
-#include "meta.h"
-#include "debug.h"
+#include "../lsmtree/skiplist.h"
+#include "../lsmtree/meta.h"
+#include "../lsmtree/debug.h"
 
 int main(int argc, char **argv)
 {

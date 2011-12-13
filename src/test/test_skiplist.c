@@ -9,10 +9,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "skiplist.h"
-#include "debug.h"
-#include "util.h"
-#include "platform.h"
+#include "../lsmtree/skiplist.h"
+#include "../lsmtree/debug.h"
+#include "../lsmtree/util.h"
+#include "../lsmtree/platform.h"
 
 #define MAXNUM (49)
 int main()

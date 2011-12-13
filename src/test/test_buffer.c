@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "buffer.h"
+#include "../lsmtree/buffer.h"
 
 int main()
 {

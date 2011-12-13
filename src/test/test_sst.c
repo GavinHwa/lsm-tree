@@ -7,9 +7,9 @@
  */
 
 #include <stdio.h>
-#include "skiplist.h"
-#include "sst.h"
-#include "debug.h"
+#include "../lsmtree/skiplist.h"
+#include "../lsmtree/sst.h"
+#include "../lsmtree/debug.h"
 
 #define LOOP (1000000)
 int main()
