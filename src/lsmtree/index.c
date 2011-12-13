@@ -79,6 +79,31 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	return 1;
 }
 
+void index_remove(struct index *idx, struct slice *sk)
+{
+	uint64_t db_offset;
+	struct skiplist *list;
+
+	db_offset = log_append(idx->log, sk, NULL);
+	list = idx->mtbls[idx->lsn];
+
+	if (!list) {
+		__DEBUG("ERROR: List<%d> is NULL", idx->lsn);
+		return;
+	}
+
+	if (!skiplist_notfull(list)) {
+		sst_merge(idx->sst, idx->mtbls[0]);
+		skiplist_free(idx->mtbls[0]);
+
+		log_trunc(idx->log);
+
+		list = skiplist_new(idx->max_mtbl_size);
+		idx->mtbls[idx->lsn] = list;
+	}
+	skiplist_insert(list, sk->data, db_offset, DEL);
+}
+
 char *index_get(struct index *idx, struct slice *sk)
 {
 	int len;

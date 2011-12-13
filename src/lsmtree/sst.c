@@ -210,8 +210,10 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 
 	/* 3)Merge */
 	merge = skiplist_new(header.count + count + 1);
-	for (i = 0; i < header.count; i++)
-		skiplist_insert(merge, blks[i].key, blks[i].offset, blks[i].opt);
+	for (i = 0; i < header.count; i++) {
+		if (blks[i].opt == ADD)
+			skiplist_insert(merge, blks[i].key, blks[i].offset, ADD);
+	}
 	
 	if (munmap(blks, blk_sizes) == -1)
 		perror("Error:read_mmap un-mmapping the file");
@@ -255,7 +257,8 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 		i = (right -left) / 2 +left;
 		int cmp = strcmp(key, blks[i].key);
 		if (cmp == 0) {
-		    off = blks[i].offset;	
+			if (blks[i].opt == ADD)
+				off = blks[i].offset;	
 			break ;
 		}
 
