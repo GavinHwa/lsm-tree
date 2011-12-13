@@ -1,10 +1,4 @@
-UNAME := $(shell uname)
-ifeq ($(UNAME), Linux)
-	DEBUG = -g -rdynamic -ggdb -DDEBUG
-else
-	DEBUG =	-g -ggdb -DDEBUG
-endif
-
+DEBUG =	-g -ggdb -DDEBUG
 CC = gcc
 CFLAGS =  -c -std=c99 -Wall $(DEBUG)	
 
@@ -48,8 +42,6 @@ cleanall:
 	-rm -f $(TESTS)
 	
 	-rm -rf dbs
-	-rm -f *.db
-	-rm -f *.log
 
 $(LIBRARY): $(LIB_OBJS)
 	rm -f $@

@@ -45,7 +45,6 @@ struct blk_header{
 	int count;
 	int crc;
 	char end[SKIP_KSIZE];
-	char pack[4096 - 4*2 -SKIP_KSIZE];
 };
 
 #define SST_MAX (25000)
@@ -90,7 +89,7 @@ void _sst_load(struct sst *sst)
 			meta_set(sst->meta, &mn);
 		}
 	}
-	meta_dump(sst->meta);
+
 	close(fd);
 	closedir(dd);
 }
@@ -125,7 +124,7 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	struct skipnode *last;
 	struct sst_block *blks;
 
-	pagesize = getpagesize();
+	pagesize = sysconf(_SC_PAGESIZE);
 	sizes = count * sizeof(struct sst_block);
 
 	if (need_new)
@@ -194,7 +193,7 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	struct sst_block *blks;
 	struct skiplist *merge = NULL;
 
-	pagesize = getpagesize();
+	pagesize = sysconf(_SC_PAGESIZE);
 	fd = open(sst->name, O_RDWR, 0644);
 
 	/* 1)header read */
@@ -226,33 +225,26 @@ out:
 	return merge;
 }
 
-uint64_t _read_offset(struct sst *sst, const char *key)
+uint64_t _read_offset(struct sst *sst, const char *key, int count)
 {
 	int fd;
 	int blk_sizes;
 	int pagesize;
 	uint64_t off = 0UL;
-	struct blk_header header;
 	struct sst_block *blks;
 
-	pagesize = getpagesize();
+	pagesize = sysconf(_SC_PAGESIZE);
 	fd = open(sst->name, O_RDWR, 0644);
 
-	/* 1)header read */
-	if (read(fd, &header, sizeof header) != sizeof header) {
-		perror("Error:read_offset,header...");
-		goto out;
-	}
-
 	/* 2)Blocks read */
-	blk_sizes = header.count * sizeof(struct sst_block);
+	blk_sizes = count * sizeof(struct sst_block);
 	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, pagesize);
 	if (blks == MAP_FAILED) {
 	    perror("Error:read_offset, mmapping the file");
 		goto out;
 	}
 
-	size_t left = 0, right = header.count, i;
+	size_t left = 0, right = count, i;
 	while (left < right) {
 		i = (right -left) / 2 +left;
 		int cmp = strcmp(key, blks[i].key);
@@ -430,7 +422,7 @@ uint64_t sst_getoff(struct sst *sst, struct slice *sk)
 		return 0UL;
 
 	memcpy(sst->name, meta_info->index_name, SST_NSIZE);
-	off = _read_offset(sst, sk->data);
+	off = _read_offset(sst, sk->data, meta_info->count);
 
 	return off;
 }

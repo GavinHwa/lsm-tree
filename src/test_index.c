@@ -9,7 +9,7 @@
 #define KSIZE (16)
 #define VSIZE (20)
 
-#define WRITE_COUNT (5000001)
+#define WRITE_COUNT (3000001)
 #define READ_COUNT (100000)
 #define MAX_MTBL_SIZE (1000000)
 
@@ -79,6 +79,7 @@ void _read_test()
 	struct index *idx = index_new(getcwd(NULL, 0), "test_idx", MAX_MTBL_SIZE);
 	for (i = 0; i < READ_COUNT; i++) {
 		random_key(key, KSIZE);
+		sk.data = key;
 		sk.len = KSIZE;
 
 		index_get(idx, &sk);
