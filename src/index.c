@@ -101,18 +101,23 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	return 1;
 }
 
-void *index_get(struct index *idx, struct slice *sk)
+char *index_get(struct index *idx, struct slice *sk)
 {
+	int len;
+	uint64_t off;
 	struct skiplist *list = idx->mtbls[idx->lsn];
 	struct skipnode *node = skiplist_lookup(list, sk->data);
-	if (node) {
-		/* TODO:read data */
-
-	} else {
-		uint64_t off;
+	if (node)
+		off = node->val;
+	else 
 		off = sst_getoff(idx->sst, sk);
-		if (off != 0) {
-			/* TODO:read data from db file */
+
+	if (off != 0) {
+		lseek(idx->log->fd_db, off, SEEK_SET);
+		if(read(idx->log->fd_db, &len, sizeof(int)) == sizeof(int)) {
+			char *data = malloc(len + 1);
+			read(idx->log->fd_db, data, len);
+			return data;
 		}
 	}
 

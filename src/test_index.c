@@ -82,7 +82,10 @@ void _read_test()
 		sk.data = key;
 		sk.len = KSIZE;
 
-		index_get(idx, &sk);
+		char *data = index_get(idx, &sk);
+		if (data) 
+			free(data);
+
 		if ((i % 10000) == 0) {
 			fprintf(stderr,"random read finished %d ops%30s\r", i, "");
 			fflush(stderr);

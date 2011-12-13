@@ -126,11 +126,8 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 
 	pagesize = sysconf(_SC_PAGESIZE);
 	sizes = count * sizeof(struct sst_block);
-
-	if (need_new)
-		fd = open(sst->name, O_RDWR | O_CREAT, 0644);
-	else
-		fd = open(sst->name, O_RDWR, 0644);
+	
+	fd = open(sst->name, O_RDWR | O_CREAT | O_TRUNC, 0644);
 
 	blks = malloc(sizes);
 
@@ -151,7 +148,8 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 		perror("ERROR: write header....");
 		goto out;	
 	}
-	write(fd, "", pagesize - sizeof header);
+	lseek(fd, pagesize - 1,SEEK_SET);
+	write(fd, "\0", 1);
 
 	/* 2)Blocks write */
 	if (write(fd, blks, sizes) != sizes) {
@@ -225,26 +223,34 @@ out:
 	return merge;
 }
 
-uint64_t _read_offset(struct sst *sst, const char *key, int count)
+uint64_t _read_offset(struct sst *sst, const char *key)
 {
 	int fd;
 	int blk_sizes;
 	int pagesize;
 	uint64_t off = 0UL;
+	struct blk_header header;
 	struct sst_block *blks;
 
 	pagesize = sysconf(_SC_PAGESIZE);
 	fd = open(sst->name, O_RDWR, 0644);
 
+	/* 1)header read */
+	if (read(fd, &header, sizeof header) != sizeof header) {
+		perror("Error:read_mmap,read header...");
+		goto out;
+	}
+	blk_sizes = header.count * sizeof(struct sst_block);
+
 	/* 2)Blocks read */
-	blk_sizes = count * sizeof(struct sst_block);
+	blk_sizes = header.count * sizeof(struct sst_block);
 	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, pagesize);
 	if (blks == MAP_FAILED) {
 	    perror("Error:read_offset, mmapping the file");
 		goto out;
 	}
 
-	size_t left = 0, right = count, i;
+	size_t left = 0, right = header.count, i;
 	while (left < right) {
 		i = (right -left) / 2 +left;
 		int cmp = strcmp(key, blks[i].key);
@@ -422,7 +428,7 @@ uint64_t sst_getoff(struct sst *sst, struct slice *sk)
 		return 0UL;
 
 	memcpy(sst->name, meta_info->index_name, SST_NSIZE);
-	off = _read_offset(sst, sk->data, meta_info->count);
+	off = _read_offset(sst, sk->data);
 
 	return off;
 }
