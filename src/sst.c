@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <unistd.h>
 #include <sys/mman.h>
 
 #include "sst.h"
@@ -44,6 +45,7 @@ struct blk_header{
 	int count;
 	int crc;
 	char end[SKIP_KSIZE];
+	char pack[4096 - 4*2 -SKIP_KSIZE];
 };
 
 #define SST_MAX (25000)
@@ -88,7 +90,7 @@ void _sst_load(struct sst *sst)
 			meta_set(sst->meta, &mn);
 		}
 	}
-
+	meta_dump(sst->meta);
 	close(fd);
 	closedir(dd);
 }
@@ -118,10 +120,12 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	int i;
 	int fd;
 	int sizes;
+	int pagesize;
 	struct blk_header header;
 	struct skipnode *last;
 	struct sst_block *blks;
 
+	pagesize = getpagesize();
 	sizes = count * sizeof(struct sst_block);
 
 	if (need_new)
@@ -148,6 +152,7 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 		perror("ERROR: write header....");
 		goto out;	
 	}
+	write(fd, "", pagesize - sizeof header);
 
 	/* 2)Blocks write */
 	if (write(fd, blks, sizes) != sizes) {
@@ -177,15 +182,19 @@ out:
 	return x;
 }
 
+
+
 struct skiplist *_read_mmap(struct sst *sst, size_t count)
 {
 	int i;
 	int fd;
 	int blk_sizes;
+	int pagesize;
 	struct blk_header header;
 	struct sst_block *blks;
 	struct skiplist *merge = NULL;
-	
+
+	pagesize = getpagesize();
 	fd = open(sst->name, O_RDWR, 0644);
 
 	/* 1)header read */
@@ -196,7 +205,7 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	blk_sizes = header.count * sizeof(struct sst_block);
 
 	/* 2)Blocks read */
-	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
+	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, pagesize);
 	if (blks == MAP_FAILED) {
 	    perror("Error:read_mmap, mmapping the file");
 		goto out;
@@ -210,6 +219,7 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	if (munmap(blks, blk_sizes) == -1)
 		perror("Error:read_mmap un-mmapping the file");
 
+
 out:
 	close(fd);
 
@@ -220,10 +230,12 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 {
 	int fd;
 	int blk_sizes;
+	int pagesize;
 	uint64_t off = 0UL;
 	struct blk_header header;
 	struct sst_block *blks;
-	
+
+	pagesize = getpagesize();
 	fd = open(sst->name, O_RDWR, 0644);
 
 	/* 1)header read */
@@ -234,7 +246,7 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 
 	/* 2)Blocks read */
 	blk_sizes = header.count * sizeof(struct sst_block);
-	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
+	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, pagesize);
 	if (blks == MAP_FAILED) {
 	    perror("Error:read_offset, mmapping the file");
 		goto out;

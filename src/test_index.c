@@ -80,7 +80,6 @@ void _read_test()
 	for (i = 0; i < READ_COUNT; i++) {
 		random_key(key, KSIZE);
 		sk.len = KSIZE;
-		sk.data = key;
 
 		index_get(idx, &sk);
 		if ((i % 10000) == 0) {
@@ -88,6 +87,7 @@ void _read_test()
 			fflush(stderr);
 		}
 	}
+
 	end = ustime();
 	index_free(idx);
 	__DEBUG("%s:count<%d>,cost:<%llu>,<%llu>opts/sec", 
@@ -96,7 +96,6 @@ void _read_test()
 			(end - start),
 			READ_COUNT / (end -start)
 			); 
-
 }
 
 int main()
@@ -104,5 +103,4 @@ int main()
 	_write_test();
 	_read_test();
 	return 0;
-
 }
