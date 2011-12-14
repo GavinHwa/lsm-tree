@@ -127,6 +127,7 @@ uint64_t log_append(struct log *l, struct slice *sk, struct slice *sv)
 void log_trunc(struct log *l)
 {
 	buffer_clear(l->buf);
+	buffer_clear(l->db_buf);
 	remove(l->name);
 	l->fd = open(l->name, LSM_CREAT_FLAGS, 0644);
 }
