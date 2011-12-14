@@ -94,23 +94,29 @@ uint64_t log_append(struct log *l, struct slice *sk, struct slice *sv)
 	uint64_t db_offset = l->db_alloc;
 
 	/* DB write */
-	buffer_putint(db_buf, sv->len);
-	buffer_putnstr(db_buf, sv->data, sv->len);
-	db_len = db_buf->NUL;
-	db_line = buffer_detach(db_buf);
+	if (sv) {
+		buffer_putint(db_buf, sv->len);
+		buffer_putnstr(db_buf, sv->data, sv->len);
+		db_len = db_buf->NUL;
+		db_line = buffer_detach(db_buf);
 
-	lseek(l->fd_db, l->db_alloc, SEEK_SET);
-	if (write(l->fd_db, db_line, db_len) != db_len) {
-		__DEBUG("%s:length:<%d>", "ERROR: Data AOF **ERROR**", db_len);
-		return db_offset;
+		lseek(l->fd_db, l->db_alloc, SEEK_SET);
+		if (write(l->fd_db, db_line, db_len) != db_len) {
+			__DEBUG("%s:length:<%d>", "ERROR: Data AOF **ERROR**", db_len);
+			return db_offset;
+		}
+		l->db_alloc += db_len;
 	}
-	l->db_alloc += db_len;
 
 	/* LOG write */
 	if (l->islog) {
 		buffer_putint(buf, sk->len);
 		buffer_putnstr(buf, sk->data, sk->len);
 		buffer_putint(buf, db_offset);
+		if(sv)
+			buffer_putint(buf, 1);
+		else
+			buffer_putint(buf, 0);
 
 		len = buf->NUL;
 		line = buffer_detach(buf);

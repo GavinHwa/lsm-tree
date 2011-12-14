@@ -152,7 +152,7 @@ int skiplist_insert_node(struct skiplist *list, struct skipnode *node)
 	return skiplist_insert(list, node->key, node->val, node->opt);
 }
 
-void skiplist_delete(struct skiplist *list, char* data) 
+void skiplist_delete(struct skiplist *list, const  char *data) 
 {
 	int i;
 	struct skipnode *update[MAXLEVEL+1], *x;
