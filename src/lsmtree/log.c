@@ -112,7 +112,7 @@ uint64_t log_append(struct log *l, struct slice *sk, struct slice *sv)
 	if (l->islog) {
 		buffer_putint(buf, sk->len);
 		buffer_putnstr(buf, sk->data, sk->len);
-		buffer_putint(buf, db_offset);
+		buffer_putlong(buf, db_offset);
 		if(sv)
 			buffer_putint(buf, 1);
 		else

@@ -17,7 +17,7 @@
 #include "log.h"
 #include "debug.h"
 
-#define TOLOG (1)
+#define TOLOG (0)
 #define DB_DIR "dbs"
 
 struct index *index_new(const char *basedir, const char *name, int max_mtbl_size)

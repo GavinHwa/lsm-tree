@@ -132,9 +132,12 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	blks = malloc(sizes);
 
 	for (i = 0 ; i < count; i++) {
-		memcpy(blks[i].key, x->key,SKIP_KSIZE);
-		blks[i].offset=x->val;
-		blks[i].opt=x->opt;
+		if (blks[i].opt == ADD) {
+			memcpy(blks[i].key, x->key,SKIP_KSIZE);
+			blks[i].offset=x->val;
+			blks[i].opt=x->opt;
+		} else
+			count--;
 
 		last = x;
 		x = x->forward[0];
