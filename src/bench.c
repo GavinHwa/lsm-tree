@@ -177,21 +177,15 @@ int main(int argc, char **argv)
 		fprintf(stderr,"Usage: bench <op: write | read> <count>\n");
 		exit(1);
 	}
-
 	count = atoi(argv[2]);
+	_print_header(count);
+	_print_environment();
 
-	if (strcmp(argv[1], "write") == 0) {
-		if (count < 100000)
-			count = 1000001;
-		
-		_print_header(count);
-		_print_environment();
-		_write_test(count);
-	} else if (strcmp(argv[1], "read") == 0) {
-		_print_header(count);
-		_print_environment();
+	if (strcmp(argv[1], "write") == 0)
+			_write_test(count);
+	else if (strcmp(argv[1], "read") == 0)
 		_read_test(count);
-	} else {
+	else {
 		fprintf(stderr,"Usage: bench <op: write | read> <count>\n");
 		exit(1);
 	}
