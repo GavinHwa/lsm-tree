@@ -2,8 +2,6 @@
  * This is a simple 'sstable' implemention, merge all mtable into on-disk indices 
  * BLOCK's LAYOUT:
  * +--------+--------+--------+--------+
- * |             block header          |
- * +--------+--------+--------+--------+
  * |             sst block 1           |
  * +--------+--------+--------+--------+
  * |             sst block 2           |
@@ -11,15 +9,6 @@
  * |      ... all the other blocks ..  |
  * +--------+--------+--------+--------+
  * |             sst block N           |
- * +--------+--------+--------+--------+
- *
- * BlOCK HEADER's LAYOUT
- * +--------+--------+--------+--------+
- * |                count              |
- * +--------+--------+--------+--------+
- * |                crc                |
- * +--------+--------+--------+--------+
- * |           block end key           |
  * +--------+--------+--------+--------+
  *
  * LSM-Tree storage engine
@@ -43,26 +32,22 @@
 #include "sst.h"
 #include "debug.h"
 
-struct blk_header{
-	int count;
-	int crc;
-	char end[SKIP_KSIZE];
-};
-
 #define SST_MAX (25000)
 #define BLK_MAGIC (20111225)
-
 
 void _sst_load(struct sst *sst)
 {
 	int fd;
-	struct dirent *de;
+	int blk_sizes = 0;
+	int b_count = 0;
+	int all_count = 0;
 	DIR *dd;
+	struct dirent *de;
+	struct sst_block *blks;
 
 	dd = opendir(sst->basedir);
 	while ((de = readdir(dd)) != NULL) {
 		if (strstr(de->d_name, ".sst")) {
-			struct blk_header header;
 			struct meta_node mn;
 			char sst_file[SST_NSIZE];
 
@@ -70,30 +55,39 @@ void _sst_load(struct sst *sst)
 			snprintf(sst_file, SST_NSIZE, "%s/%s", sst->basedir, de->d_name);
 			
 			fd = open(sst_file, O_RDWR, 0644);
-			if (read(fd, &header, sizeof header) != sizeof header) {
-				perror("ERROR: sst load,read header...");
+			blk_sizes = lseek(fd, 0, SEEK_END);
+			if (blk_sizes == 0) {
 				close(fd);
-			}
-
-			if (header.crc != BLK_MAGIC) {
-				close(fd);
-				__DEBUG("ERROR: block crc wrong,%d",header.crc);
 				continue;
 			}
-			
+
+			b_count = blk_sizes / sizeof(struct sst_block);
+			all_count += b_count;
+
+			blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
+			if (blks == MAP_FAILED) {
+				perror("Error:read_mmap, mmapping the file");
+				close(fd);
+			}
+						
 			/* Set meta */
-			mn.count = header.count;
+			mn.count = b_count;
 			memset(mn.end, 0, SKIP_KSIZE);
-			memcpy(mn.end, header.end, SKIP_KSIZE);
+			memcpy(mn.end, blks[b_count -1].key, SKIP_KSIZE);
 
 			memset(mn.index_name, 0, SST_NSIZE);
 			memcpy(mn.index_name, sst_file, SST_NSIZE);
 			meta_set(sst->meta, &mn);
+			
+			if (munmap(blks, blk_sizes) == -1)
+				perror("Error:read_mmap un-mmapping the file");
+
+			close(fd);
 		}
 	}
-
-	close(fd);
 	closedir(dd);
+
+	__DEBUG("Load sst,all entries count:<%d>", all_count);
 }
 
 struct sst *sst_new(const char *basedir)
@@ -119,17 +113,12 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	int i;
 	int fd;
 	int sizes;
-	int pagesize;
-	struct blk_header header;
 	struct skipnode *last;
 	struct sst_block *blks;
 
-	pagesize = sysconf(_SC_PAGESIZE);
 	sizes = count * sizeof(struct sst_block);
-	
-	fd = open(sst->name, O_RDWR | O_CREAT | O_TRUNC, 0644);
-
 	blks = malloc(sizes);
+	fd = open(sst->name, O_RDWR | O_CREAT | O_TRUNC, 0644);
 
 	for (i = 0 ; i < count; i++) {
 		if (blks[i].opt == ADD) {
@@ -143,18 +132,7 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 		x = x->forward[0];
 	}
 
-	/* 1)Header write */
-	memcpy(header.end, last->key, SKIP_KSIZE);
-	header.count = count;
-	header.crc = BLK_MAGIC;
-	if (write(fd, &header, sizeof header) != sizeof header) {
-		perror("ERROR: write header....");
-		goto out;	
-	}
-	lseek(fd, pagesize - 1,SEEK_SET);
-	write(fd, "\0", 1);
-
-	/* 2)Blocks write */
+	/* Blocks write */
 	if (write(fd, blks, sizes) != sizes) {
 		perror("ERROR: write blocks....");
 		goto out;	
@@ -182,45 +160,35 @@ out:
 	return x;
 }
 
-
-
 struct skiplist *_read_mmap(struct sst *sst, size_t count)
 {
 	int i;
 	int fd;
 	int blk_sizes;
-	int pagesize;
-	struct blk_header header;
+	int b_count;
 	struct sst_block *blks;
 	struct skiplist *merge = NULL;
 
-	pagesize = sysconf(_SC_PAGESIZE);
 	fd = open(sst->name, O_RDWR, 0644);
+	blk_sizes = lseek(fd, 0, SEEK_END);
+	b_count = blk_sizes / sizeof(struct sst_block); 
 
-	/* 1)header read */
-	if (read(fd, &header, sizeof header) != sizeof header) {
-		perror("Error:read_mmap,read header...");
-		goto out;
-	}
-	blk_sizes = header.count * sizeof(struct sst_block);
-
-	/* 2)Blocks read */
-	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, pagesize);
+	/* Blocks read */
+	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
 	if (blks == MAP_FAILED) {
 	    perror("Error:read_mmap, mmapping the file");
 		goto out;
 	}
 
-	/* 3)Merge */
-	merge = skiplist_new(header.count + count + 1);
-	for (i = 0; i < header.count; i++) {
+	/* Merge */
+	merge = skiplist_new(b_count + count + 1);
+	for (i = 0; i < b_count; i++) {
 		if (blks[i].opt == ADD)
 			skiplist_insert(merge, blks[i].key, blks[i].offset, ADD);
 	}
 	
 	if (munmap(blks, blk_sizes) == -1)
 		perror("Error:read_mmap un-mmapping the file");
-
 
 out:
 	close(fd);
@@ -232,33 +200,25 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 {
 	int fd;
 	int blk_sizes;
-	int pagesize;
+	int b_count;
 	uint64_t off = 0UL;
-	struct blk_header header;
 	struct sst_block *blks;
 
-	pagesize = sysconf(_SC_PAGESIZE);
 	fd = open(sst->name, O_RDWR, 0644);
+	blk_sizes = lseek(fd, 0, SEEK_END);
+	b_count = blk_sizes / sizeof(struct sst_block);
 
-	/* 1)header read */
-	if (read(fd, &header, sizeof header) != sizeof header) {
-		perror("Error:read_mmap,read header...");
-		goto out;
-	}
-	blk_sizes = header.count * sizeof(struct sst_block);
-
-	/* 2)Blocks read */
-	blk_sizes = header.count * sizeof(struct sst_block);
-	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, pagesize);
+	/* Blocks read */
+	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
 	if (blks == MAP_FAILED) {
 	    perror("Error:read_offset, mmapping the file");
 		goto out;
 	}
 
-	size_t left = 0, right = header.count, i;
+	size_t left = 0, right = b_count, i = 0;
 	while (left < right) {
 		i = (right -left) / 2 +left;
-		int cmp = strcmp(key, blks[i].key);
+		int cmp = memcmp(&key, &blks[i].key, SKIP_KSIZE);
 		if (cmp == 0) {
 			if (blks[i].opt == ADD)
 				off = blks[i].offset;	
@@ -279,8 +239,6 @@ out:
 
 	return off;
 }
-
-
 
 void _flush_merge_list(struct sst *sst, struct skipnode *x, size_t count)
 {

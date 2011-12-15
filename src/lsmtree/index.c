@@ -51,7 +51,6 @@ struct index *index_new(const char *basedir, const char *name, int max_mtbl_size
 	return idx;
 }
 
-
 int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 {
 	uint64_t db_offset;
@@ -77,6 +76,26 @@ int index_add(struct index *idx, struct slice *sk, struct slice *sv)
 	skiplist_insert(list, sk->data, db_offset, ADD);
 
 	return 1;
+}
+
+void index_flush(struct index *idx)
+{
+	struct skiplist *list;
+
+	list = idx->mtbls[idx->lsn];
+
+	if (!list) {
+		__DEBUG("ERROR: List<%d> is NULL", idx->lsn);
+		return ;
+	}
+
+	sst_merge(idx->sst, idx->mtbls[0]);
+	skiplist_free(idx->mtbls[0]);
+
+	log_trunc(idx->log);
+
+	list = skiplist_new(idx->max_mtbl_size);
+	idx->mtbls[idx->lsn] = list;
 }
 
 void index_remove(struct index *idx, struct slice *sk)
@@ -129,6 +148,8 @@ char *index_get(struct index *idx, struct slice *sk)
 
 void index_free(struct index *idx)
 {
+	__DEBUG("%s:", "Warn: mtable is flush to disk");
+	index_flush(idx);
 	log_free(idx->log);
 	free(idx);
 }
