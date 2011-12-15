@@ -49,10 +49,10 @@ void _sst_load(struct sst *sst)
 	while ((de = readdir(dd)) != NULL) {
 		if (strstr(de->d_name, ".sst")) {
 			struct meta_node mn;
-			char sst_file[SST_NSIZE];
+			char sst_file[SST_FLEN];
 
-			memset(sst_file, 0, SST_NSIZE);
-			snprintf(sst_file, SST_NSIZE, "%s/%s", sst->basedir, de->d_name);
+			memset(sst_file, 0, SST_FLEN);
+			snprintf(sst_file, SST_FLEN, "%s/%s", sst->basedir, de->d_name);
 			
 			fd = open(sst_file, O_RDWR, 0644);
 			blk_sizes = lseek(fd, 0, SEEK_END);
@@ -76,7 +76,7 @@ void _sst_load(struct sst *sst)
 			memcpy(mn.end, blks[b_count -1].key, SKIP_KSIZE);
 
 			memset(mn.index_name, 0, SST_NSIZE);
-			memcpy(mn.index_name, sst_file, SST_NSIZE);
+			memcpy(mn.index_name, de->d_name, SST_NSIZE);
 			meta_set(sst->meta, &mn);
 			
 			if (munmap(blks, blk_sizes) == -1)
@@ -98,7 +98,7 @@ struct sst *sst_new(const char *basedir)
 	s->lsn = 0;
 
 	s->meta = meta_new();
-	memcpy(s->basedir, basedir, SST_NSIZE);
+	memcpy(s->basedir, basedir, SST_FLEN);
 
 	/* SST files load */
 	_sst_load(s);
@@ -113,12 +113,16 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	int i;
 	int fd;
 	int sizes;
+	char file[SST_FLEN];
 	struct skipnode *last;
 	struct sst_block *blks;
 
 	sizes = count * sizeof(struct sst_block);
 	blks = malloc(sizes);
-	fd = open(sst->name, O_RDWR | O_CREAT | O_TRUNC, 0644);
+
+	memset(file, 0, SST_FLEN);
+	snprintf(file, SST_FLEN, "%s/%s", sst->basedir, sst->name);
+	fd = open(file, O_RDWR | O_CREAT | O_TRUNC, 0644);
 
 	for (i = 0 ; i < count; i++) {
 		if (blks[i].opt == ADD) {
@@ -166,10 +170,14 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	int fd;
 	int blk_sizes;
 	int b_count;
+	char file[SST_FLEN];
 	struct sst_block *blks;
 	struct skiplist *merge = NULL;
 
-	fd = open(sst->name, O_RDWR, 0644);
+	memset(file, 0, SST_FLEN);
+	snprintf(file, SST_FLEN, "%s/%s", sst->basedir, sst->name);
+
+	fd = open(file, O_RDWR, 0644);
 	blk_sizes = lseek(fd, 0, SEEK_END);
 	b_count = blk_sizes / sizeof(struct sst_block); 
 
@@ -202,9 +210,13 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 	int blk_sizes;
 	int b_count;
 	uint64_t off = 0UL;
+	char file[SST_FLEN];
 	struct sst_block *blks;
 
-	fd = open(sst->name, O_RDWR, 0644);
+	memset(file, 0, SST_FLEN);
+	snprintf(file, SST_FLEN, "%s/%s", sst->basedir, sst->name);
+
+	fd = open(file, O_RDWR, 0644);
 	blk_sizes = lseek(fd, 0, SEEK_END);
 	b_count = blk_sizes / sizeof(struct sst_block);
 
@@ -218,7 +230,7 @@ uint64_t _read_offset(struct sst *sst, const char *key)
 	size_t left = 0, right = b_count, i = 0;
 	while (left < right) {
 		i = (right -left) / 2 +left;
-		int cmp = memcmp(&key, &blks[i].key, SKIP_KSIZE);
+		int cmp = strcmp(key, blks[i].key);
 		if (cmp == 0) {
 			if (blks[i].opt == ADD)
 				off = blks[i].offset;	
@@ -257,13 +269,13 @@ void _flush_merge_list(struct sst *sst, struct skipnode *x, size_t count)
 
 		for (int i = 0; i < mul; i++) {
 			memset(sst->name, 0, SST_NSIZE);
-			snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
+			snprintf(sst->name, SST_NSIZE, "%d.sst", sst->meta->size); 
 			x = _write_mmap(sst, x, SST_MAX, 1);
 		}
 
 		/* The remain part,will be larger than SST_MAX */
 		memset(sst->name, 0, SST_NSIZE);
-		snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
+		snprintf(sst->name, SST_NSIZE, "%d.sst", sst->meta->size); 
 
 		x = _write_mmap(sst, x, SST_MAX + rem, 1);
 	}	
@@ -276,7 +288,7 @@ void _flush_new_list(struct sst *sst, struct skipnode *x, size_t count)
 
 	if (count < (SST_MAX * 2)) {
 		memset(sst->name, 0, SST_NSIZE);
-		snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
+		snprintf(sst->name, SST_NSIZE, "%d.sst", sst->meta->size); 
 		x = _write_mmap(sst, x, count, 1);
 	} else {
 		mul = count / SST_MAX;
@@ -284,12 +296,12 @@ void _flush_new_list(struct sst *sst, struct skipnode *x, size_t count)
 
 		for (int i = 0; i < (mul - 1); i++) {
 			memset(sst->name, 0, SST_NSIZE);
-			snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
+			snprintf(sst->name, SST_NSIZE, "%d.sst", sst->meta->size); 
 			x = _write_mmap(sst, x, SST_MAX, 1);
 		}
 
 		memset(sst->name, 0, SST_NSIZE);
-		snprintf(sst->name, SST_NSIZE, "%s/%d.sst", sst->basedir, sst->meta->size); 
+		snprintf(sst->name, SST_NSIZE, "%d.sst", sst->meta->size); 
 		x = _write_mmap(sst, x, SST_MAX + rem, 1);
 	}
 }

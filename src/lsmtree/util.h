@@ -9,7 +9,8 @@
 #ifndef _UTIL_H
 #define _UTIL_H
 
-#define SST_NSIZE (1024)
+#define SST_NSIZE (16)
+#define SST_FLEN (1024)
 #define INDEX_NSIZE (1024)
 #define LOG_NSIZE (1024)
 

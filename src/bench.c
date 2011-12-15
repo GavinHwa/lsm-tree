@@ -102,7 +102,8 @@ void _write_test(long int count)
 	char val[VSIZE];
 
 	start = _ustime();
-	struct index *idx = index_new(getcwd(NULL, 0), "test_idx", MAX_MTBL_SIZE);
+	char *path = getcwd(NULL, 0);
+	struct index *idx = index_new(path, "test_idx", MAX_MTBL_SIZE);
 	for (i = 0; i < count; i++) {
 		_random_key(key, KSIZE);
 		snprintf(val, VSIZE, "val:%d", i);
@@ -169,6 +170,26 @@ void _read_test(long int count)
 		,cost);
 }
 
+void _readone_test(char *key)
+{
+	struct slice sk;
+
+	struct index *idx = index_new(getcwd(NULL, 0), "test_idx", MAX_MTBL_SIZE);
+	sk.data = key;
+	sk.len = KSIZE;
+
+	char *data = index_get(idx, &sk);
+	if (data){ 
+		__DEBUG("Get Key:<%s>--->value is :<%s>", key, data);
+		free(data);
+	} else
+		__DEBUG("Get Key:<%s>,but value is NULL", key);
+
+	index_free(idx);
+}
+
+
+
 int main(int argc, char **argv)
 {
 	long int count;
@@ -177,15 +198,21 @@ int main(int argc, char **argv)
 		fprintf(stderr,"Usage: bench <op: write | read> <count>\n");
 		exit(1);
 	}
-	count = atoi(argv[2]);
-	_print_header(count);
-	_print_environment();
-
-	if (strcmp(argv[1], "write") == 0)
-			_write_test(count);
-	else if (strcmp(argv[1], "read") == 0)
+	
+	if (strcmp(argv[1], "write") == 0) {
+		count = atoi(argv[2]);
+		_print_header(count);
+		_print_environment();
+		_write_test(count);
+	} else if (strcmp(argv[1], "read") == 0) {
+		count = atoi(argv[2]);
+		_print_header(count);
+		_print_environment();
+		
 		_read_test(count);
-	else {
+	} else if (strcmp(argv[1], "readone") == 0) {
+		_readone_test(argv[2]);
+	} else {
 		fprintf(stderr,"Usage: bench <op: write | read> <count>\n");
 		exit(1);
 	}

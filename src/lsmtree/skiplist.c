@@ -13,8 +13,8 @@
 
 #include "debug.h"
 
-#define cmp_lt(a, b) (memcmp(a, b, SKIP_KSIZE) < 0)
-#define cmp_eq(a, b) (memcmp(a, b, SKIP_KSIZE) == 0)
+#define cmp_lt(a, b) (strcmp(a, b) < 0)
+#define cmp_eq(a, b) (strcmp(a, b) == 0)
 
 #define NIL list->hdr
 

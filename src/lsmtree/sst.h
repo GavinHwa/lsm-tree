@@ -21,7 +21,7 @@ struct sst_block{
 };
 
 struct sst{
-	char basedir[SST_NSIZE];
+	char basedir[SST_FLEN];
 	char name[SST_NSIZE];
 	uint32_t lsn;
 	struct meta *meta;
