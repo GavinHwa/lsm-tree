@@ -119,11 +119,15 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	int fsize = sizeof(struct footer);
 
 	sizes = count * sizeof(struct sst_block);
-	blks = malloc(sizes);
 
 	memset(file, 0, SST_FLEN);
 	snprintf(file, SST_FLEN, "%s/%s", sst->basedir, sst->name);
 	fd = open(file, O_RDWR | O_CREAT | O_TRUNC, 0644);
+
+	lseek(fd, sizes - 1, SEEK_SET);
+	write(fd, "", 1);
+
+	blks = mmap(0, sizes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
 	for (i = 0 ; i < count; i++) {
 		if (blks[i].opt == ADD) {
@@ -137,12 +141,12 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 		x = x->forward[0];
 	}
 
-	/* Blocks write */
-	if (write(fd, blks, sizes) != sizes) {
-		perror("ERROR: write blocks....");
-		goto out;	
-	}
 
+
+	if (munmap(blks, sizes) == -1) {
+		perror("Error un-mmapping the file");
+	}
+	
 	footer.count = count;
 	footer.crc = F_CRC;
 	memset(footer.key, 0, SKIP_KSIZE);
@@ -165,8 +169,6 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	else 
 		meta_set_byname(sst->meta, &mn);
 
-out:
-	free(blks);
 	close(fd);
 
 	return x;
@@ -275,7 +277,7 @@ void _flush_merge_list(struct sst *sst, struct skipnode *x, size_t count)
 		x = _write_mmap(sst, x, SST_MAX, 0);
 
 		/* first+last */
-		mul = (count - SST_MAX * 2) / SST_MAX;
+		mul = (count - SST_MAX) / SST_MAX;
 		rem = count % SST_MAX;
 
 		for (int i = 0; i < mul; i++) {
@@ -284,11 +286,13 @@ void _flush_merge_list(struct sst *sst, struct skipnode *x, size_t count)
 			x = _write_mmap(sst, x, SST_MAX, 1);
 		}
 
-		/* The remain part,will be larger than SST_MAX */
-		memset(sst->name, 0, SST_NSIZE);
-		snprintf(sst->name, SST_NSIZE, "%d.sst", sst->meta->size); 
+		if (rem > 0) {
+			/* The remain part,will be larger than SST_MAX */
+			memset(sst->name, 0, SST_NSIZE);
+			snprintf(sst->name, SST_NSIZE, "%d.sst", sst->meta->size); 
 
-		x = _write_mmap(sst, x, SST_MAX + rem, 1);
+			x = _write_mmap(sst, x, rem, 1);
+		}
 	}	
 }
 
