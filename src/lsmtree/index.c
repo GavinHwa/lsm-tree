@@ -17,7 +17,7 @@
 #include "log.h"
 #include "debug.h"
 
-#define TOLOG (0)
+#define TOLOG (1)
 #define DB_DIR "dbs"
 
 struct index *index_new(const char *basedir, const char *name, int max_mtbl_size)
@@ -47,6 +47,7 @@ struct index *index_new(const char *basedir, const char *name, int max_mtbl_size
 
 	/* log */
 	idx->log = log_new(idx->basedir, idx->name, TOLOG);
+	log_recovery(idx->log, idx->mtbls[0]);
 
 	return idx;
 }
@@ -130,7 +131,7 @@ char *index_get(struct index *idx, struct slice *sk)
 	uint64_t off;
 	struct skiplist *list = idx->mtbls[idx->lsn];
 	struct skipnode *node = skiplist_lookup(list, sk->data);
-	if (node)
+	if (node && node->opt == ADD)
 		off = node->val;
 	else 
 		off = sst_getoff(idx->sst, sk);

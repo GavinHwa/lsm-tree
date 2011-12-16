@@ -10,6 +10,7 @@
 #define _LOG_H
 
 #include <stdint.h>
+#include "skiplist.h"
 #include "util.h"
 #include "platform.h"
 
@@ -24,6 +25,8 @@ struct log{
 };
 
 struct log *log_new(const char *basedir, const char *name, int islog);
+
+int log_recovery(struct log *log, struct skiplist *list);
 uint64_t log_append(struct log *log, struct slice *sk, struct slice *sv);
 void log_trunc(struct log *log);
 void log_free(struct log *log);

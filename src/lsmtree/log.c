@@ -59,11 +59,9 @@ struct log *log_new(const char *basedir, const char *name, int islog)
 	memset(db_name, 0, LOG_NSIZE);
 	snprintf(db_name, LOG_NSIZE, "%s/%s.db", basedir, name);
 
-	if (_file_exists(log_name)) {
+	if (_file_exists(log_name))
 		l->fd = open(log_name, LSM_OPEN_FLAGS, 0644);
-		__DEBUG("%s", "WARNING: Find log file,need to recover");
-		/*TODO: log recover*/
-	} else
+	else
 		l->fd = open(log_name, LSM_CREAT_FLAGS, 0644);
 
 	if (_file_exists(db_name)) {
@@ -84,6 +82,15 @@ struct log *log_new(const char *basedir, const char *name, int islog)
 
 
 	return l;
+}
+
+int log_recovery(struct log *l, struct skiplist *list)
+{
+	int sizes = lseek(l->fd, 0, SEEK_END);
+	if (sizes > 0)
+		__DEBUG("%s", "WARNING: Find log file,need to recover");
+	/* TODO: log read */
+	return 0;
 }
 
 uint64_t log_append(struct log *l, struct slice *sk, struct slice *sv)
