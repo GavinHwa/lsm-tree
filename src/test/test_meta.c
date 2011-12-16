@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 
 	for(int i=0;i<10;i++){
 		snprintf(node.end, SKIP_KSIZE, "key:%d", rand());
-		snprintf(node.index_name, SKIP_KSIZE, "index:%d", i);
+		snprintf(node.index_name, SST_NSIZE, "index:%d", i);
 		node.count = i*i;
 		meta_set(m, &node);
 	}

@@ -1,6 +1,6 @@
 DEBUG =	-g -ggdb -DDEBUG
 CC = gcc
-CFLAGS =  -c -std=c99 -Wall $(DEBUG)	
+CFLAGS =  -c -std=c99 -Wall $(DEBUG)
 
 LIB_OBJS =     \
 	./lsmtree/index.o  \

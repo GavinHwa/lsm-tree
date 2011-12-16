@@ -28,6 +28,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #include "sst.h"
 #include "debug.h"
@@ -46,6 +47,7 @@ void _sst_load(struct sst *sst)
 {
 	int fd;
 	int all_count = 0;
+	int result;
 	DIR *dd;
 	struct dirent *de;
 
@@ -63,7 +65,10 @@ void _sst_load(struct sst *sst)
 			
 			fd = open(sst_file, O_RDWR, 0644);
 			lseek(fd, -fsize, SEEK_END);
-			read(fd, &footer, sizeof(struct footer));
+			result = read(fd, &footer, sizeof(struct footer));
+			if (result == -1)
+				abort();
+
 			if (footer.crc != F_CRC) {
 				__DEBUG("Error:crc wrong,crc:<%d>,index<%s>", footer.crc, sst_file);
 				close(fd);
@@ -111,6 +116,7 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	int i;
 	int fd;
 	int sizes;
+	int result;
 	char file[SST_FLEN];
 	struct skipnode *last;
 	struct sst_block *blks;
@@ -125,10 +131,13 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	fd = open(file, O_RDWR | O_CREAT | O_TRUNC, 0644);
 
 	lseek(fd, sizes - 1, SEEK_SET);
-	write(fd, "", 1);
+	result = write(fd, "", 1);
+	if (result == -1)
+		abort();
 
 	blks = mmap(0, sizes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
+	last = x;
 	for (i = 0 ; i < count; i++) {
 		if (blks[i].opt == ADD) {
 			memcpy(blks[i].key, x->key,SKIP_KSIZE);
@@ -152,7 +161,9 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	memset(footer.key, 0, SKIP_KSIZE);
 	memcpy(footer.key, last->key, SKIP_KSIZE);
 
-	write(fd,&footer, fsize);
+	result = write(fd,&footer, fsize);
+	if (result == -1)
+		abort();
 
 	/* Set meta */
 	struct meta_node mn;
@@ -178,6 +189,7 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 {
 	int i;
 	int fd;
+	int result;
 	int blk_sizes;
 	char file[SST_FLEN];
 	struct sst_block *blks;
@@ -189,8 +201,13 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	snprintf(file, SST_FLEN, "%s/%s", sst->basedir, sst->name);
 
 	fd = open(file, O_RDWR, 0644);
-	lseek(fd, -fsize, SEEK_END);
-	read(fd, &footer, fsize);
+	result = lseek(fd, -fsize, SEEK_END);
+	if (result == -1) {
+		abort();
+	}
+	result = read(fd, &footer, fsize);
+	if (result == -1)
+		abort();
 
 	blk_sizes = footer.count * sizeof(struct sst_block);
 

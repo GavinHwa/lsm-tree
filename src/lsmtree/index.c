@@ -126,6 +126,7 @@ void index_remove(struct index *idx, struct slice *sk)
 char *index_get(struct index *idx, struct slice *sk)
 {
 	int len;
+	int result;
 	uint64_t off;
 	struct skiplist *list = idx->mtbls[idx->lsn];
 	struct skipnode *node = skiplist_lookup(list, sk->data);
@@ -138,8 +139,9 @@ char *index_get(struct index *idx, struct slice *sk)
 		lseek(idx->log->fd_db, off, SEEK_SET);
 		if(read(idx->log->fd_db, &len, sizeof(int)) == sizeof(int)) {
 			char *data = malloc(len + 1);
-			read(idx->log->fd_db, data, len);
-			return data;
+			result = read(idx->log->fd_db, data, len);
+			if (result != -1)
+				return data;
 		}
 	}
 

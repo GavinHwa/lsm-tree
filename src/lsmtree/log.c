@@ -44,6 +44,7 @@ int _file_exists(const char *path)
 
 struct log *log_new(const char *basedir, const char *name, int islog)
 {
+	int result;
 	struct log *l;
 	char log_name[LOG_NSIZE];
 	char db_name[LOG_NSIZE];
@@ -72,7 +73,9 @@ struct log *log_new(const char *basedir, const char *name, int islog)
 		int magic = DB_MAGIC;
 
 		l->fd_db = open(db_name, LSM_CREAT_FLAGS, 0644);
-		write(l->fd_db, &magic, sizeof(int));
+		result = write(l->fd_db, &magic, sizeof(int));
+		if (result == -1) 
+			perror("write magic error\n");
 		l->db_alloc = sizeof(int);
 	}
 

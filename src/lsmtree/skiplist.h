@@ -12,7 +12,7 @@
 #include <stdint.h>
 
 #define MAXLEVEL (15)
-#define SKIP_KSIZE (24)
+#define SKIP_KSIZE (32)
 
 typedef enum {ADD,DEL} OPT;
 
