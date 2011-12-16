@@ -34,59 +34,57 @@
 
 #define SST_MAX (25000)
 #define BLK_MAGIC (20111225)
+#define F_CRC (2011)
+
+struct footer{
+	char key[SKIP_KSIZE];
+	int count;
+	int crc;
+};
 
 void _sst_load(struct sst *sst)
 {
 	int fd;
-	int blk_sizes = 0;
-	int b_count = 0;
 	int all_count = 0;
 	DIR *dd;
 	struct dirent *de;
-	struct sst_block *blks;
 
 	dd = opendir(sst->basedir);
 	while ((de = readdir(dd)) != NULL) {
 		if (strstr(de->d_name, ".sst")) {
 			struct meta_node mn;
+			struct footer footer;
 			char sst_file[SST_FLEN];
+			int fsize = sizeof(struct footer);
+
 
 			memset(sst_file, 0, SST_FLEN);
 			snprintf(sst_file, SST_FLEN, "%s/%s", sst->basedir, de->d_name);
 			
 			fd = open(sst_file, O_RDWR, 0644);
-			blk_sizes = lseek(fd, 0, SEEK_END);
-			if (blk_sizes == 0) {
+			lseek(fd, -fsize, SEEK_END);
+			read(fd, &footer, sizeof(struct footer));
+			if (footer.crc != F_CRC) {
+				__DEBUG("Error:crc wrong,crc:<%d>,index<%s>", footer.crc, sst_file);
 				close(fd);
 				continue;
 			}
 
-			b_count = blk_sizes / sizeof(struct sst_block);
-			all_count += b_count;
-
-			blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
-			if (blks == MAP_FAILED) {
-				perror("Error:read_mmap, mmapping the file");
-				close(fd);
-			}
+			all_count += footer.count;
 						
 			/* Set meta */
-			mn.count = b_count;
+			mn.count = footer.count;
 			memset(mn.end, 0, SKIP_KSIZE);
-			memcpy(mn.end, blks[b_count -1].key, SKIP_KSIZE);
+			memcpy(mn.end, footer.key, SKIP_KSIZE);
 
 			memset(mn.index_name, 0, SST_NSIZE);
 			memcpy(mn.index_name, de->d_name, SST_NSIZE);
 			meta_set(sst->meta, &mn);
-			
-			if (munmap(blks, blk_sizes) == -1)
-				perror("Error:read_mmap un-mmapping the file");
-
+		
 			close(fd);
 		}
 	}
 	closedir(dd);
-
 	__DEBUG("Load sst,all entries count:<%d>", all_count);
 }
 
@@ -116,6 +114,9 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 	char file[SST_FLEN];
 	struct skipnode *last;
 	struct sst_block *blks;
+	struct footer footer;
+
+	int fsize = sizeof(struct footer);
 
 	sizes = count * sizeof(struct sst_block);
 	blks = malloc(sizes);
@@ -141,6 +142,13 @@ void *_write_mmap(struct sst *sst, struct skipnode *x, size_t count, int need_ne
 		perror("ERROR: write blocks....");
 		goto out;	
 	}
+
+	footer.count = count;
+	footer.crc = F_CRC;
+	memset(footer.key, 0, SKIP_KSIZE);
+	memcpy(footer.key, last->key, SKIP_KSIZE);
+
+	write(fd,&footer, fsize);
 
 	/* Set meta */
 	struct meta_node mn;
@@ -169,17 +177,20 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	int i;
 	int fd;
 	int blk_sizes;
-	int b_count;
 	char file[SST_FLEN];
 	struct sst_block *blks;
 	struct skiplist *merge = NULL;
+	struct footer footer;
+	int fsize = sizeof(struct footer);
 
 	memset(file, 0, SST_FLEN);
 	snprintf(file, SST_FLEN, "%s/%s", sst->basedir, sst->name);
 
 	fd = open(file, O_RDWR, 0644);
-	blk_sizes = lseek(fd, 0, SEEK_END);
-	b_count = blk_sizes / sizeof(struct sst_block); 
+	lseek(fd, -fsize, SEEK_END);
+	read(fd, &footer, fsize);
+
+	blk_sizes = footer.count * sizeof(struct sst_block);
 
 	/* Blocks read */
 	blks= mmap(0, blk_sizes, PROT_READ, MAP_SHARED, fd, 0);
@@ -189,8 +200,8 @@ struct skiplist *_read_mmap(struct sst *sst, size_t count)
 	}
 
 	/* Merge */
-	merge = skiplist_new(b_count + count + 1);
-	for (i = 0; i < b_count; i++) {
+	merge = skiplist_new(footer.count + count + 1);
+	for (i = 0; i < footer.count; i++) {
 		if (blks[i].opt == ADD)
 			skiplist_insert(merge, blks[i].key, blks[i].offset, ADD);
 	}

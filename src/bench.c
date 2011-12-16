@@ -194,6 +194,7 @@ int main(int argc, char **argv)
 {
 	long int count;
 
+	srand(time(NULL));
 	if (argc != 3) {
 		fprintf(stderr,"Usage: bench <op: write | read> <count>\n");
 		exit(1);
