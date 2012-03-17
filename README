@@ -1,18 +1,23 @@
 ================================================================
 		Log-Structured Merge-Tree (LSM-Tree)
 ================================================================
-
-Yep,this is a Log-Structured Merge-Tree (LSM-Tree) project, which is written in ANSI-C, without external dependencies.
-It is a simply LSM-Tree implementation, and is intended as nessDB storage engine(v1.8).
-Still under construction NOW.
+This is a simple LSM-Tree implementation, and is intended as nessDB storage engine(v1.8).
 
 LAYOUT
 =======
- mtable : memory table(a key sorted skiplist,very fast,200000 ops/second)
+ mtable : memory table(a key sorted skiplist)
  sstable : On-Disk indices(key sorted),include : block index,blocks
  log : insert/update/delete log file,when checkpoint created it will be deleted.
 
- *NOTICE* This project is only a prototype of  LSM-Tree, the vailable version is here :https://github.com/shuttler/nessDB/tree/unstable/engine
+ *NOTICE* The new version is here :https://github.com/shuttler/nessDB/tree/unstable/engine
+
+HOW TO
+======
+./make bench
+./bench <op: write | read> <count>
+
+or
+./make cleandb
 
  Drafted By BohuTANG <overred.shuttler at gmail dot com>
  2011
