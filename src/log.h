@@ -1,6 +1,6 @@
 /*
- * LSM-Tree storage engine
- * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ * nessDB storage engine
+ * Copyright (c) 2011-2012, BohuTANG <overred.shuttler at gmail dot com>
  * All rights reserved.
  * Code is licensed with BSD. See COPYING.BSD file.
  *
@@ -12,23 +12,27 @@
 #include <stdint.h>
 #include "skiplist.h"
 #include "util.h"
+#include "config.h"
 #include "platform.h"
 
 struct log{
-	int fd;
-	int fd_db;
+	int idx_wfd;
+	int db_wfd;
 	int islog;
-	char name[LOG_NSIZE];
 	uint64_t db_alloc;
+	char name[FILE_PATH_SIZE];
+	char basedir[FILE_PATH_SIZE];
+	char log_old[FILE_PATH_SIZE];
+	char log_new[FILE_PATH_SIZE];
 	struct buffer *buf;
 	struct buffer *db_buf;
 };
 
-struct log *log_new(const char *basedir, const char *name, int islog);
-
+struct log *log_new(const char *basedir, int lsn, int islog);
 int log_recovery(struct log *log, struct skiplist *list);
 uint64_t log_append(struct log *log, struct slice *sk, struct slice *sv);
-void log_trunc(struct log *log);
+void log_remove(struct log *log, int lsn);
+void log_next(struct log *log, int lsn);
 void log_free(struct log *log);
 
 #endif

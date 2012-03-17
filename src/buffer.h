@@ -1,6 +1,6 @@
 /*
- * LSM-Tree storage engine
- * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ * nessDB storage engine
+ * Copyright (c) 2011-2012, BohuTANG <overred.shuttler at gmail dot com>
  * All rights reserved.
  * Code is licensed with BSD. See COPYING.BSD file.
  *
@@ -27,9 +27,10 @@ void buffer_putc(struct buffer *b, const char c);
 void buffer_putstr(struct buffer *b, const char *str);
 void buffer_putnstr(struct buffer *b, const char *str, size_t n);
 void buffer_putint(struct buffer *b, int val);
+void buffer_scatf(struct buffer *b, const char *fmt, ...);
 void buffer_putlong(struct buffer *b, uint64_t val);
-uint32_t buffer_getint(unsigned char *buf);
-uint64_t buffer_getlong(unsigned char *buf);
+uint32_t u32_from_big(unsigned char *buf);
+uint64_t u64_from_big(unsigned char *buf);
 
 void buffer_dump(struct buffer *b);
 

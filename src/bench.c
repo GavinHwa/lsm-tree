@@ -1,24 +1,34 @@
 /*
- * LSM-Tree storage engine
- * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ * nessDB storage engine
+ * Copyright (c) 2011-2012, BohuTANG <overred.shuttler at gmail dot com>
  * All rights reserved.
  * Code is licensed with BSD. See COPYING.BSD file.
  *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include <sys/time.h>
-#include "lsmtree/index.h"
-#include "lsmtree/debug.h"
-#include "lsmtree/util.h"
 
-#define KSIZE (16)
-#define VSIZE (20)
-#define MAX_MTBL_SIZE (5000000)
-#define V "0.1"
+/*NOTE:
+	How to do
+	=========
+		$make db-bench
+	 	$./db-bench <op: write | read> <count>
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <time.h>
+#include <sys/time.h>	
+#include <string.h>
+#include "config.h"
+#include "index.h"
+#include "util.h"
+#include "debug.h"
+
+#define TOLOG (0)
+#define KSIZE 	16
+#define VSIZE 	80
+#define V			"1.8"
 #define LINE 		"+-----------------------------+----------------+------------------------------+-------------------+\n"
 #define LINE1		"---------------------------------------------------------------------------------------------------\n"
 
@@ -33,14 +43,15 @@ long long _ustime(void)
 	return ust / 1000000;
 }
 
+
 void _random_key(char *key,int length) {
 	char salt[36]= "abcdefghijklmnopqrstuvwxyz0123456789";
+	int i;
+
 	memset(key, 0, length);
-	for (int i = 0; i < length; i++)
+	for (i = 0; i < length; i++)
 		key[i] = salt[rand() % length];
 }
-
-
 
 void _print_header(int count)
 {
@@ -58,7 +69,7 @@ void _print_header(int count)
 void _print_environment()
 {
 	time_t now = time(NULL);
-	printf("LSM-Tree:	version %s(LSM-Tree storage engine)\n", V);
+	printf("nessDB:		version %s(LSM-Tree storage engine)\n", V);
 	printf("Date:		%s", (char*)ctime(&now));
 
 	int num_cpus = 0;
@@ -91,19 +102,28 @@ void _print_environment()
 	}
 }
 
+struct index *_get_idx()
+{	
+	struct index *idx;
+
+	idx = index_new("ndbs", MTBL_MAX_COUNT, TOLOG);
+	return idx;
+}
+
 void _write_test(long int count)
 {
 	int i;
 	double cost;
 	long long start,end;
 	struct slice sk, sv;
+	struct index *idx;
 
 	char key[KSIZE];
 	char val[VSIZE];
 
+	idx = _get_idx();
+
 	start = _ustime();
-	char *path = getcwd(NULL, 0);
-	struct index *idx = index_new(path, "test_idx", MAX_MTBL_SIZE);
 	for (i = 0; i < count; i++) {
 		_random_key(key, KSIZE);
 		snprintf(val, VSIZE, "val:%d", i);
@@ -119,10 +139,10 @@ void _write_test(long int count)
 			fflush(stderr);
 		}
 	}
+	index_free(idx);
+
 	end = _ustime();
 	cost = end -start;
-
-	index_free(idx);
 
 	printf(LINE);
 	printf("|Random-Write	(done:%ld): %.6f sec/op; %.1f writes/sec(estimated); cost:%.3f(sec)\n"
@@ -134,34 +154,32 @@ void _write_test(long int count)
 void _read_test(long int count)
 {
 	int i;
+	int ret;
 	double cost;
+	char key[KSIZE];
 	long long start,end;
 	struct slice sk;
+	struct slice sv;
+	struct index *idx;
 
-	char key[KSIZE];
-
+	idx = _get_idx();
 	start = _ustime();
-	struct index *idx = index_new(getcwd(NULL, 0), "test_idx", MAX_MTBL_SIZE);
 	for (i = 0; i < count; i++) {
 		_random_key(key, KSIZE);
-		sk.data = key;
 		sk.len = KSIZE;
-
-		char *data = index_get(idx, &sk);
-		if (data) 
-			free(data);
+		sk.data = key;
+		ret = index_get(idx, &sk, &sv);
+		if (ret) 
+			free(sv.data);
 
 		if ((i % 10000) == 0) {
 			fprintf(stderr,"random read finished %d ops%30s\r", i, "");
 			fflush(stderr);
 		}
 	}
-
+	index_free(idx);
 	end = _ustime();
 	cost = end - start;
-	index_free(idx);
-
- 	cost = end - start;
 	printf(LINE);
 	printf("|Random-Read	(done:%ld): %.6f sec/op; %.1f reads /sec(estimated); cost:%.3f(sec)\n"
 		,count
@@ -172,25 +190,25 @@ void _read_test(long int count)
 
 void _readone_test(char *key)
 {
+	int ret;
 	struct slice sk;
+	struct slice sv;
+	struct index *idx;
 
-	struct index *idx = index_new(getcwd(NULL, 0), "test_idx", MAX_MTBL_SIZE);
-	sk.data = key;
+	idx = _get_idx();
 	sk.len = KSIZE;
+	sk.data = key;
 
-	char *data = index_get(idx, &sk);
-	if (data){ 
-		__DEBUG("Get Key:<%s>--->value is :<%s>", key, data);
-		free(data);
+	ret = index_get(idx, &sk, &sv);
+	if (ret){ 
+		__DEBUG(LEVEL_INFO, "Get Key:<%s>--->value is :<%s>", key, sv.data);
+		free(sv.data);
 	} else
-		__DEBUG("Get Key:<%s>,but value is NULL", key);
-
+		__DEBUG(LEVEL_INFO, "Get Key:<%s>,but value is NULL", key);
 	index_free(idx);
 }
 
-
-
-int main(int argc, char **argv)
+int main(int argc,char** argv)
 {
 	long int count;
 
@@ -217,5 +235,6 @@ int main(int argc, char **argv)
 		fprintf(stderr,"Usage: bench <op: write | read> <count>\n");
 		exit(1);
 	}
-	return 0;
+
+	return 1;
 }

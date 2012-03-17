@@ -1,6 +1,6 @@
 /*
- * LSM-Tree storage engine
- * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ * nessDB storage engine
+ * Copyright (c) 2011-2012, BohuTANG <overred.shuttler at gmail dot com>
  * All rights reserved.
  * Code is licensed with BSD. See COPYING.BSD file.
  *
@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "buffer.h"
 
 unsigned _next_power(unsigned x)
@@ -36,6 +37,14 @@ void _buffer_extendby(struct buffer *b, int len)
 	b->buflen = _next_power(len);
 	buffer = realloc(b->buf, b->buflen);
 	b->buf = buffer;
+}
+
+void _string_vprintf(struct buffer *b, const char *fmt, va_list ap)
+{
+	int num_required;
+	while ((num_required = vsnprintf(b->buf + b->NUL, b->buflen - b->NUL, fmt, ap)) >= b->buflen - b->NUL)
+		_buffer_extendby(b, num_required + 1);
+	b->NUL += num_required;
 }
 
 
@@ -91,6 +100,9 @@ void buffer_putc(struct buffer *b, const char c)
 	b->buf[b->NUL] = '\0';
 }
 
+/*
+ * Big-Endian
+ */
 void buffer_putint(struct buffer *b, int val)
 {
 	_buffer_extendby(b, sizeof(int));
@@ -100,8 +112,7 @@ void buffer_putint(struct buffer *b, int val)
 	b->buf[b->NUL++] = val & 0xff;
 }
 
-uint32_t buffer_getint(unsigned char *buf)
-{
+uint32_t u32_from_big(unsigned char *buf) {
 	uint32_t val = 0;
 
 	val |= buf[0] << 24;
@@ -111,8 +122,23 @@ uint32_t buffer_getint(unsigned char *buf)
 	return val;
 }
 
-uint64_t buffer_getlong(unsigned char *buf) 
+/*
+ * Big-Endian
+ */
+void buffer_putlong(struct buffer *b, uint64_t val)
 {
+	_buffer_extendby(b, sizeof(uint64_t));
+	b->buf[b->NUL++] = (val >> 56) & 0xff;
+	b->buf[b->NUL++] = (val >> 48) & 0xff;
+	b->buf[b->NUL++] = (val >> 40) & 0xff;
+	b->buf[b->NUL++] = (val >> 32) & 0xff;
+	b->buf[b->NUL++] = (val >> 24) & 0xff;
+	b->buf[b->NUL++] = (val >> 16) & 0xff;
+	b->buf[b->NUL++] = (val >> 8) & 0xff;
+	b->buf[b->NUL++] = val & 0xff;
+}
+
+uint64_t u64_from_big(unsigned char *buf) {
 	uint64_t val = 0;
 
 	val |= (uint64_t) buf[0] << 56;
@@ -126,17 +152,12 @@ uint64_t buffer_getlong(unsigned char *buf)
 	return val;
 }
 
-void buffer_putlong(struct buffer *b, uint64_t val)
+void buffer_scatf(struct buffer *b, const char *fmt, ...)
 {
-	_buffer_extendby(b, sizeof(uint64_t));
-	b->buf[b->NUL++] = (val >> 56) & 0xff;
-	b->buf[b->NUL++] = (val >> 48) & 0xff;
-	b->buf[b->NUL++] = (val >> 40) & 0xff;
-	b->buf[b->NUL++] = (val >> 32) & 0xff;
-	b->buf[b->NUL++] = (val >> 24) & 0xff;
-	b->buf[b->NUL++] = (val >> 16) & 0xff;
-	b->buf[b->NUL++] = (val >> 8) & 0xff;
-	b->buf[b->NUL++] = val & 0xff;
+	va_list ap;
+	va_start(ap, fmt);
+	_string_vprintf(b, fmt, ap);
+	va_end(ap);
 }
 
 char * buffer_detach(struct buffer *b)
@@ -152,5 +173,5 @@ void buffer_dump(struct buffer *b)
 	printf("--buffer dump:buflen<%d>,pos<%d>\n", b->buflen, b->NUL);
 
 	for (i = 0; i < b->NUL; i++)
-		printf("	[%d] %c\n", i, b->buf[i]);
+		printf("\t[%d] %c\n", i, b->buf[i]);
 }

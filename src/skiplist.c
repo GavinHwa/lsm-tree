@@ -1,6 +1,6 @@
 /*
- * LSM-Tree storage engine
- * Copyright (c) 2011, BohuTANG <overred.shuttler at gmail dot com>
+ * nessDB storage engine
+ * Copyright (c) 2011-2012, BohuTANG <overred.shuttler at gmail dot com>
  * All rights reserved.
  * Code is licensed with BSD. See COPYING.BSD file.
  *
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "skiplist.h"
-
+#include "config.h"
 #include "debug.h"
 
 #define cmp_lt(a, b) (strcmp(a, b) < 0)
@@ -132,9 +132,9 @@ int skiplist_insert(struct skiplist *list, char *key, uint64_t val, OPT opt)
 	}
 
 	if ((x =_pool_alloc(list,sizeof(struct skipnode) + new_level*sizeof(struct skipnode *))) == 0)
-		__DEBUG("%s", "ERROR: Alloc Memory *ERROR*");
+		__DEBUG(LEVEL_ERROR, "%s", "ERROR: Alloc Memory *ERROR*");
 
-	memcpy(x->key, key, SKIP_KSIZE);
+	memcpy(x->key, key, NESSDB_MAX_KEY_SIZE);
 	x->val = val;
 	x->opt = opt;
 
@@ -150,34 +150,6 @@ int skiplist_insert(struct skiplist *list, char *key, uint64_t val, OPT opt)
 int skiplist_insert_node(struct skiplist *list, struct skipnode *node)
 {
 	return skiplist_insert(list, node->key, node->val, node->opt);
-}
-
-void skiplist_delete(struct skiplist *list, const  char *data) 
-{
-	int i;
-	struct skipnode *update[MAXLEVEL+1], *x;
-
-	x = list->hdr;
-	for (i = list->level; i >= 0; i--) {
-		while (x->forward[i] != NIL 
-				&& cmp_lt(x->forward[i]->key, data))
-			x = x->forward[i];
-		update[i] = x;
-	}
-	x = x->forward[0];
-	if (x == NIL || !cmp_eq(x->key, data))
-		return;
-
-	for (i = 0; i <= list->level; i++) {
-		if (update[i]->forward[i] != x)
-			break;
-		update[i]->forward[i] = x->forward[i];
-	}
-	free (x);
-
-	while ((list->level > 0)
-			&& (list->hdr->forward[list->level] == NIL))
-		list->level--;
 }
 
 struct skipnode *skiplist_lookup(struct skiplist *list, char* data) 
@@ -196,23 +168,3 @@ struct skipnode *skiplist_lookup(struct skiplist *list, char* data)
 	return NULL;
 }
 
-
-void skiplist_dump(struct skiplist *list)
-{
-	int i = 0;
-	struct skipnode *x = list->hdr->forward[0];
-
-	printf("--skiplist dump:level<%d>,size:<%d>,count:<%d>\n",
-			list->level,
-			(int)list->size,
-			(int)list->count);
-
-	while( x != NIL) {
-		printf("	[%d]key:<%s>;val<%llu>;opt<%s>\n",
-				i++,
-				x->key,
-				x->val,
-				x->opt == ADD?"ADD":"DEL");
-		x = x->forward[0];
-	}
-}
