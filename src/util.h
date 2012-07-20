@@ -38,7 +38,7 @@ typedef uint64_t BITWISE __be64; /* big endian, 64 bits */
 
 /* Bloom filter */
 #ifndef CHAR_BIT
-#define CHAR_BIT 8
+#define CHAR_BIT (8)
 #endif
 #define SETBIT_1(bitset,i) (bitset[i / CHAR_BIT] |=  (1<<(i % CHAR_BIT)))
 #define SETBIT_0(bitset,i) (bitset[i / CHAR_BIT] &=  (~(1<<(i % CHAR_BIT))))
